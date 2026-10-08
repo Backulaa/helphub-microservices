@@ -4,6 +4,9 @@ spring:
     username: ${DB_USER:helphub}
     password: ${DB_PASSWORD}
 
+  config:
+    import: "optional:file:./.env[.properties]"
+
   jpa:
     open-in-view: false
 
@@ -13,3 +16,7 @@ spring:
     properties:
       hibernate:
         format_sql: true
+        jdbc:
+          time_zone: UTC
+        timezone:
+          default_storage: NORMALIZE_UTC

@@ -1,51 +1,47 @@
 package com.helphub.identity.role.entity;
 
+import com.helphub.identity.common.persistence.AuditableEntity;
 import jakarta.persistence.*;
-import java.time.OffsetDateTime;
-import java.time.ZoneOffset;
+import lombok.AccessLevel;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
+
 import java.util.UUID;
 
 @Entity
 @Table(name = "roles", uniqueConstraints = {
         @UniqueConstraint(name = "uk_roles_code", columnNames = "code")
 })
-public class Role {
+@Getter
+@Setter
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
+public class Role extends AuditableEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
-    @Column(nullable = false, updatable = false)
+    @Column(name = "id", nullable = false, updatable = false)
     private UUID id;
 
-    @Column(nullable = false, length = 50)
+    @Column(name = "code", nullable = false, length = 50)
     private String code;
 
-    @Column(nullable = false, length = 100)
+    @Column(name = "name", nullable = false, length = 100)
     private String name;
 
-    @Column(length = 255)
+    @Column(name = "description", length = 255)
     private String description;
 
     @Column(name = "is_active", nullable = false)
     private boolean active = true;
 
-    @Column(name = "created_at", nullable = false, updatable = false)
-    private OffsetDateTime createdAt;
-
-    @Column(name = "updated_at", nullable = false)
-    private OffsetDateTime updatedAt;
-
-    protected Role() {
-    }
-
-    @PrePersist
-    public void onCreate() {
-        OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
-        this.createdAt = now;
-        this.updatedAt = now;
-    }
-
-    @PreUpdate
-    public void onUpdate() {
-        this.updatedAt = OffsetDateTime.now(ZoneOffset.UTC);
+    public Role(
+            String code,
+            String name,
+            String description) {
+        this.code = code;
+        this.name = name;
+        this.description = description;
+        this.active = true;
     }
 }
