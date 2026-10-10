@@ -70,4 +70,17 @@ public class LoginSession extends AuditableEntity {
     @Version
     @Column(name = "version")
     private Long version;
+
+    public LoginSession(
+            User user,
+            AuthenticationLevel authenticationLevel,
+            OffsetDateTime authenticatedAt,
+            OffsetDateTime expiresAt,
+            long securityVersion) {
+        this.user = user;
+        this.authenticationLevel = authenticationLevel;
+        this.authenticatedAt = authenticatedAt;
+        this.expiresAt = expiresAt;
+        this.securityVersion = securityVersion;
+    }
 }
