@@ -1,12 +1,21 @@
 spring:
+  # Read local .env when running Spring Boot
+  # directly from the project root.
+  config:
+    import: "optional:file:./.env[.properties]"
+
+  # ==========================================
+  # PostgreSQL
+  # ==========================================
   datasource:
     url: ${DB_URL:jdbc:postgresql://localhost:5433/helphub_identity}
     username: ${DB_USER:helphub}
     password: ${DB_PASSWORD}
+    driver-class-name: org.postgresql.Driver
 
-  config:
-    import: "optional:file:./.env[.properties]"
-
+  # ==========================================
+  # JPA / Hibernate
+  # ==========================================
   jpa:
     open-in-view: false
 
@@ -20,3 +29,61 @@ spring:
           time_zone: UTC
         timezone:
           default_storage: NORMALIZE_UTC
+
+  # ==========================================
+  # Email / SMTP
+  # ==========================================
+  mail:
+    host: ${MAIL_HOST:localhost}
+    port: ${MAIL_PORT:1025}
+    properties:
+      "[mail.smtp.auth]": false
+      "[mail.smtp.starttls.enable]": false
+      "[mail.smtp.connectiontimeout]": 5000
+      "[mail.smtp.timeout]": 5000
+      "[mail.smtp.writetimeout]": 5000
+
+# ==========================================
+# Security
+# ==========================================
+security:
+  otp:
+    hmac-key-base64: ${OTP_HMAC_KEY_BASE64}
+
+  jwt:
+    secret-base64: ${JWT_SECRET_BASE64}
+    issuer: ${JWT_ISSUER:helphub-identity}
+    audience: ${JWT_AUDIENCE:helphub-services}
+    access-token-minutes: 15
+    session-days: 14
+
+# ==========================================
+# Application Settings
+# ==========================================
+app:
+  mail:
+    from: ${MAIL_FROM:no-reply@helphub.local}
+
+    security:
+      cookie:
+        secure: ${REFRESH_COOKIE_SECURE:false}
+
+    cors:
+      allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:5173}
+
+# ==========================================
+# Swagger / OpenAPI
+# ==========================================
+springdoc:
+  api-docs:
+    enabled: true
+    path: /v3/api-docs
+
+  swagger-ui:
+    enabled: true
+    path: /swagger-ui.html
+    operations-sorter: method
+    tags-sorter: alpha
+
+  paths-to-match:
+    - /api/v1/**
