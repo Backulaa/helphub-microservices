@@ -19,6 +19,9 @@ spring:
   jpa:
     open-in-view: false
 
+    # Defer datasource initialization until after the application context is fully initialized.
+    defer-datasource-initialization: true
+
     hibernate:
       ddl-auto: update
 
