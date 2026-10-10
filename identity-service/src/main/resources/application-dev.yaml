@@ -43,6 +43,15 @@ spring:
       "[mail.smtp.timeout]": 5000
       "[mail.smtp.writetimeout]": 5000
 
+  # ==========================================
+  # SEED ROLE DATA
+  # ==========================================
+  sql:
+    init:
+      mode: always
+      data-locations: classpath:db/seed-roles.sql
+      continue-on-error: false
+
 # ==========================================
 # Security
 # ==========================================
