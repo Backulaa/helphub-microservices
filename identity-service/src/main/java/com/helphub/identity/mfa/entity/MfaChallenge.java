@@ -63,4 +63,18 @@ public class MfaChallenge extends AuditableEntity {
     @Version
     @Column(name = "version")
     private Long version;
+
+    public MfaChallenge(
+            User user,
+            LoginSession session,
+            MfaChallengePurpose purpose,
+            OffsetDateTime expiresAt) {
+        this.user = user;
+        this.session = session;
+        this.purpose = purpose;
+        this.method = MfaMethod.EMAIL_OTP;
+        this.expiresAt = expiresAt;
+        this.securityVersion = user.getSecurityVersion();
+        this.attemptCount = 0;
+    }
 }
