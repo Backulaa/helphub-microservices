@@ -117,7 +117,8 @@ public class EmailOtpService {
                 new OtpEmailEvent(
                         user.getEmail(),
                         otp,
-                        newOtp.getExpiresAt()));
+                        newOtp.getExpiresAt(),
+                        OtpPurpose.EMAIL_VERIFICATION));
 
         return true;
     }

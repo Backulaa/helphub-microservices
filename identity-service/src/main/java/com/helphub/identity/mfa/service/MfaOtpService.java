@@ -240,7 +240,8 @@ public class MfaOtpService {
                 new OtpEmailEvent(
                         user.getEmail(),
                         otp,
-                        expiresAt));
+                        expiresAt,
+                        otpPurpose));
 
         // ==========================================
         // 13. Return challenge metadata
