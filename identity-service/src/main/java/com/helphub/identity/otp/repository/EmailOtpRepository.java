@@ -7,6 +7,7 @@ import jakarta.persistence.LockModeType;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -15,43 +16,57 @@ import java.util.Optional;
 import java.util.UUID;
 
 public interface EmailOtpRepository
-                extends JpaRepository<EmailOtp, UUID> {
+    extends JpaRepository<EmailOtp, UUID> {
 
-        Optional<EmailOtp> findByChallengeId(
-                        UUID challengeId);
+  Optional<EmailOtp> findByChallengeId(
+      UUID challengeId);
 
-        Optional<EmailOtp> findFirstByUser_IdAndPurposeAndRevokedAtIsNullAndVerifiedAtIsNullOrderByCreatedAtDesc(
-                        UUID userId,
-                        OtpPurpose purpose);
+  Optional<EmailOtp> findFirstByUser_IdAndPurposeAndRevokedAtIsNullAndVerifiedAtIsNullOrderByCreatedAtDesc(
+      UUID userId,
+      OtpPurpose purpose);
 
-        @Lock(LockModeType.PESSIMISTIC_WRITE)
-        @Query("""
-                        SELECT o
-                        FROM EmailOtp o
-                        WHERE o.challengeId = :challengeId
-                        """)
-        Optional<EmailOtp> findByChallengeIdForUpdate(
-                        @Param("challengeId") UUID challengeId);
+  @Lock(LockModeType.PESSIMISTIC_WRITE)
+  @Query("""
+      SELECT o
+      FROM EmailOtp o
+      WHERE o.challengeId = :challengeId
+      """)
+  Optional<EmailOtp> findByChallengeIdForUpdate(
+      @Param("challengeId") UUID challengeId);
 
-        @Lock(LockModeType.PESSIMISTIC_WRITE)
-        Optional<EmailOtp> findFirstByUser_IdAndPurposeOrderByCreatedAtDesc(
-                        UUID userId,
-                        OtpPurpose purpose);
+  @Lock(LockModeType.PESSIMISTIC_WRITE)
+  Optional<EmailOtp> findFirstByUser_IdAndPurposeOrderByCreatedAtDesc(
+      UUID userId,
+      OtpPurpose purpose);
 
-        long countByUser_IdAndPurposeAndCreatedAtAfter(
-                        UUID userId,
-                        OtpPurpose purpose,
-                        OffsetDateTime since);
+  long countByUser_IdAndPurposeAndCreatedAtAfter(
+      UUID userId,
+      OtpPurpose purpose,
+      OffsetDateTime since);
 
-        @Query("""
-                        SELECT COALESCE(SUM(o.attemptCount), 0)
-                        FROM EmailOtp o
-                        WHERE o.user.id = :userId
-                          AND o.purpose = :purpose
-                          AND o.createdAt > :since
-                        """)
-        Long countFailedAttempts(
-                        @Param("userId") UUID userId,
-                        @Param("purpose") OtpPurpose purpose,
-                        @Param("since") OffsetDateTime since);
+  @Query("""
+      SELECT COALESCE(SUM(o.attemptCount), 0)
+      FROM EmailOtp o
+      WHERE o.user.id = :userId
+        AND o.purpose = :purpose
+        AND o.createdAt > :since
+      """)
+  Long countFailedAttempts(
+      @Param("userId") UUID userId,
+      @Param("purpose") OtpPurpose purpose,
+      @Param("since") OffsetDateTime since);
+
+  @Modifying(flushAutomatically = true)
+  @Query("""
+      UPDATE EmailOtp e
+      SET e.revokedAt = :now
+      WHERE e.user.id = :userId
+        AND e.purpose = :purpose
+        AND e.verifiedAt IS NULL
+        AND e.revokedAt IS NULL
+      """)
+  int revokeAllUnconsumedByUserAndPurpose(
+      @Param("userId") UUID userId,
+      @Param("purpose") OtpPurpose purpose,
+      @Param("now") OffsetDateTime now);
 }

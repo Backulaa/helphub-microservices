@@ -1,7 +1,6 @@
 package com.helphub.identity.infrastructure.email;
 
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.context.event.EventListener;
 
 import org.springframework.mail.MailException;
 import org.springframework.mail.SimpleMailMessage;
