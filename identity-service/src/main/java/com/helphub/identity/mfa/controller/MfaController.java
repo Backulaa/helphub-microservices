@@ -1,3 +1,4 @@
+
 package com.helphub.identity.mfa.controller;
 
 import com.helphub.identity.auth.dto.IssuedTokens;
@@ -13,8 +14,9 @@ import com.helphub.identity.mfa.service.MfaOtpService;
 import com.helphub.identity.mfa.service.MfaService;
 
 import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.tags.Tag;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.tags.Tag;
 
 import jakarta.validation.Valid;
 
@@ -29,7 +31,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.UUID;
 
-@Tag(name = "Multi-Factor Authentication", description = "Email OTP MFA management and login verification")
+@Tag(name = "Multi-Factor Authentication", description = "Email OTP verification for login and MFA settings")
 @RestController
 @RequestMapping("/api/v1/auth/mfa")
 public class MfaController {
@@ -48,10 +50,14 @@ public class MfaController {
         }
 
         // ==========================================
-        // GET MFA Status
+        // Get MFA Status
         // ==========================================
 
-        @Operation(summary = "Get MFA status")
+        @Operation(summary = "Get MFA status", description = "Retrieve the authenticated user's MFA status, method, and setup details.")
+        @ApiResponses({
+                        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "MFA status retrieved successfully"),
+                        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "Missing, expired, or invalid access token")
+        })
         @SecurityRequirement(name = "bearerAuth")
         @GetMapping("/status")
         public ResponseEntity<ApiResponse<MfaStatusResponse>> status(
@@ -71,7 +77,13 @@ public class MfaController {
         // Start MFA Setup
         // ==========================================
 
-        @Operation(summary = "Start MFA setup")
+        @Operation(summary = "Start MFA setup", description = "Verify the current password and send an email OTP to begin enabling MFA.")
+        @ApiResponses({
+                        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "MFA setup challenge created and OTP requested"),
+                        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Invalid request, password, or MFA state"),
+                        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "Missing, expired, or invalid access token"),
+                        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "429", description = "OTP rate limit or resend cooldown exceeded")
+        })
         @SecurityRequirement(name = "bearerAuth")
         @PostMapping("/setup/start")
         public ResponseEntity<ApiResponse<MfaChallengeResponse>> startSetup(
@@ -94,7 +106,12 @@ public class MfaController {
         // Confirm MFA Setup
         // ==========================================
 
-        @Operation(summary = "Confirm and enable MFA")
+        @Operation(summary = "Enable MFA", description = "Confirm the setup OTP, enable MFA, and revoke existing login sessions.")
+        @ApiResponses({
+                        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "MFA enabled successfully; new login required"),
+                        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Invalid, expired, or already used MFA challenge"),
+                        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "Missing, expired, or invalid access token")
+        })
         @SecurityRequirement(name = "bearerAuth")
         @PostMapping("/setup/confirm")
         public ResponseEntity<ApiResponse<Void>> confirmSetup(
@@ -129,11 +146,16 @@ public class MfaController {
         // Verify MFA Login
         // ==========================================
 
-        @Operation(summary = "Complete MFA login with email OTP")
+        @Operation(summary = "Complete MFA login", description = "Verify the login OTP and CSRF token, then issue access and refresh tokens.")
+        @ApiResponses({
+                        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "MFA verified; access token and refresh cookie issued"),
+                        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Invalid request or missing required header"),
+                        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "Invalid, expired, or already used MFA challenge"),
+                        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "CSRF token missing or invalid")
+        })
         @PostMapping("/login/verify")
         public ResponseEntity<ApiResponse<TokenResponse>> verifyLogin(
                         @Valid @RequestBody VerifyMfaRequest request,
-
                         @RequestHeader("X-XSRF-TOKEN") String csrfToken) {
                 IssuedTokens issued = mfaService.verifyLogin(
                                 request.challengeId(),
@@ -171,7 +193,13 @@ public class MfaController {
         // Start MFA Disable
         // ==========================================
 
-        @Operation(summary = "Start MFA disabling")
+        @Operation(summary = "Start MFA disabling", description = "Verify the current password and send an email OTP to begin disabling MFA.")
+        @ApiResponses({
+                        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "MFA disable challenge created and OTP requested"),
+                        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Invalid request, password, or MFA state"),
+                        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "Missing, expired, or invalid access token"),
+                        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "429", description = "OTP rate limit or resend cooldown exceeded")
+        })
         @SecurityRequirement(name = "bearerAuth")
         @PostMapping("/disable/start")
         public ResponseEntity<ApiResponse<MfaChallengeResponse>> startDisable(
@@ -194,7 +222,12 @@ public class MfaController {
         // Confirm MFA Disable
         // ==========================================
 
-        @Operation(summary = "Confirm and disable MFA")
+        @Operation(summary = "Disable MFA", description = "Confirm the disable OTP, turn off MFA, and revoke existing login sessions.")
+        @ApiResponses({
+                        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "MFA disabled successfully; new login required"),
+                        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Invalid, expired, or already used MFA challenge"),
+                        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "Missing, expired, or invalid access token")
+        })
         @SecurityRequirement(name = "bearerAuth")
         @PostMapping("/disable/confirm")
         public ResponseEntity<ApiResponse<Void>> confirmDisable(
