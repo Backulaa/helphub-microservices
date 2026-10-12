@@ -6,14 +6,14 @@ import com.helphub.identity.auth.dto.ResendEmailOtpRequest;
 import com.helphub.identity.auth.dto.ResetPasswordRequest;
 import com.helphub.identity.auth.dto.VerifyEmailOtpRequest;
 import com.helphub.identity.auth.dto.LoginRequest;
+import com.helphub.identity.auth.dto.LoginResult;
 import com.helphub.identity.auth.dto.TokenResponse;
 import com.helphub.identity.auth.dto.ChangePasswordRequest;
 import com.helphub.identity.auth.dto.CsrfTokenResponse;
 import com.helphub.identity.auth.dto.CurrentUserResponse;
 import com.helphub.identity.auth.dto.ForgotPasswordRequest;
+import com.helphub.identity.auth.dto.IssuedTokens;
 import com.helphub.identity.auth.service.SessionAuthService;
-import com.helphub.identity.auth.service.IssuedTokens;
-import com.helphub.identity.auth.service.LoginResult;
 import com.helphub.identity.auth.service.AuthService;
 
 import com.helphub.identity.infrastructure.security.RefreshCookieService;
@@ -22,6 +22,8 @@ import com.helphub.identity.common.dto.ApiResponse;
 import com.helphub.identity.common.exception.BusinessException;
 
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 
 import jakarta.validation.Valid;
@@ -58,15 +60,13 @@ public class AuthController {
         // Register
         // ==========================================
 
-        @Operation(summary = "Register a new account", description = """
-                        Register a new HelpHub account.
-
-                        Allowed roles: REQUESTER and VOLUNTEER.
-                        Email verification is required before login.
-                        """)
-        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "201", description = "Account registered successfully")
-        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Invalid registration data")
-        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "409", description = "Email already registered")
+        @Operation(summary = "Register account", description = "Create a REQUESTER or VOLUNTEER account and request an email verification OTP. No tokens are issued.")
+        @ApiResponses({
+                        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "201", description = "Account registered; email verification required"),
+                        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Invalid registration data, password, or role"),
+                        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "409", description = "Email already registered"),
+                        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "429", description = "Registration or OTP issuance rate limit exceeded")
+        })
         @PostMapping("/register")
         public ResponseEntity<ApiResponse<RegisterResponse>> register(
                         @Valid @RequestBody RegisterRequest request) {
@@ -86,13 +86,11 @@ public class AuthController {
         // Resend Email OTP
         // ==========================================
 
-        @Operation(summary = "Resend email verification OTP", description = """
-                        Request a verification OTP for an eligible account.
-
-                        The response does not disclose
-                        whether the email exists.
-                        """)
-        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "202", description = "Verification request accepted")
+        @Operation(summary = "Resend verification OTP", description = "Request a new email verification OTP. The response does not disclose account existence or status.")
+        @ApiResponses({
+                        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "202", description = "Verification request accepted"),
+                        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Invalid email format")
+        })
         @PostMapping("/email/resend")
         public ResponseEntity<ApiResponse<Void>> resendEmailOtp(
                         @Valid @RequestBody ResendEmailOtpRequest request) {
@@ -112,13 +110,11 @@ public class AuthController {
         // Verify Email OTP
         // ==========================================
 
-        @Operation(summary = "Verify email OTP", description = """
-                        Verify the 6-digit OTP sent to the user's email.
-
-                        A valid OTP can only be used once.
-                        """)
-        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Email verified successfully")
-        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Invalid or expired OTP")
+        @Operation(summary = "Verify email", description = "Verify account email ownership using a valid, one-time six-digit OTP.")
+        @ApiResponses({
+                        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Email verified successfully"),
+                        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Invalid, expired, or already used OTP")
+        })
         @PostMapping("/email/verify")
         public ResponseEntity<ApiResponse<Void>> verifyEmailOtp(
                         @Valid @RequestBody VerifyEmailOtpRequest request) {
@@ -144,13 +140,15 @@ public class AuthController {
         // Login
         // ==========================================
 
-        @Operation(summary = "Login with email and password", description = """
-                        If MFA is disabled, returns Access Token
-                        and sets Refresh Token cookie.
-
-                        If MFA is enabled, returns HTTP 202 with
-                        a challengeId and does not issue tokens.
-                        """)
+        @Operation(summary = "Log in", description = "Authenticate with email and password. Requires a CSRF token; issues access and refresh tokens or returns an MFA challenge.")
+        @ApiResponses({
+                        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Login successful; access token issued and refresh cookie set"),
+                        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "202", description = "MFA required; challenge returned without issuing tokens"),
+                        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Invalid login request"),
+                        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "Invalid email or password"),
+                        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Invalid CSRF token or account not eligible"),
+                        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "429", description = "Login rate limit exceeded")
+        })
         @PostMapping("/login")
         public ResponseEntity<?> login(
                         @Valid @RequestBody LoginRequest request,
@@ -201,7 +199,13 @@ public class AuthController {
         // Refresh Token
         // ==========================================
 
-        @Operation(summary = "Rotate Refresh Token using HttpOnly cookie")
+        @Operation(summary = "Refresh access token", description = "Rotate the HttpOnly refresh token cookie and issue a new access token. Requires the X-XSRF-TOKEN header.")
+        @ApiResponses({
+                        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Access token issued and refresh token rotated"),
+                        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Invalid refresh request"),
+                        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "Missing, expired, or revoked refresh token"),
+                        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Missing or invalid CSRF token")
+        })
         @PostMapping("/refresh")
         public ResponseEntity<ApiResponse<TokenResponse>> refresh(
                         @CookieValue(name = RefreshCookieService.COOKIE_NAME, required = false) String rawRefreshToken,
@@ -247,8 +251,12 @@ public class AuthController {
         // Logout
         // ==========================================
 
-        @Operation(summary = "Logout current session")
-        @io.swagger.v3.oas.annotations.security.SecurityRequirement(name = "bearerAuth")
+        @Operation(summary = "Log out", description = "Revoke the current login session and clear its refresh token cookie.")
+        @ApiResponses({
+                        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Logged out successfully"),
+                        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "Missing, expired, or invalid access token")
+        })
+        @SecurityRequirement(name = "bearerAuth")
         @PostMapping("/logout")
         public ResponseEntity<ApiResponse<Void>> logout(
                         @AuthenticationPrincipal Jwt jwt) {
@@ -274,8 +282,12 @@ public class AuthController {
         // Get Current User
         // ==========================================
 
-        @Operation(summary = "Get current authenticated user")
-        @io.swagger.v3.oas.annotations.security.SecurityRequirement(name = "bearerAuth")
+        @Operation(summary = "Get current user", description = "Retrieve the authenticated user's account information and role.")
+        @ApiResponses({
+                        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Current user retrieved successfully"),
+                        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "Missing, expired, or invalid access token")
+        })
+        @SecurityRequirement(name = "bearerAuth")
         @GetMapping("/me")
         public ResponseEntity<ApiResponse<CurrentUserResponse>> me(
                         @AuthenticationPrincipal Jwt jwt) {
@@ -294,7 +306,10 @@ public class AuthController {
         // Get CSRF Token
         // ==========================================
 
-        @Operation(summary = "Get CSRF token for cookie-based refresh")
+        @Operation(summary = "Get CSRF token", description = "Retrieve the CSRF token required in the X-XSRF-TOKEN header for cookie-protected authentication requests.")
+        @ApiResponses({
+                        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "CSRF token retrieved successfully")
+        })
         @GetMapping("/csrf")
         public ResponseEntity<ApiResponse<CsrfTokenResponse>> csrf(
                         CsrfToken csrfToken) {
@@ -315,13 +330,11 @@ public class AuthController {
         // Forgot Password
         // ==========================================
 
-        @Operation(summary = "Request password reset", description = """
-                        Request a password reset OTP.
-
-                        Always returns a generic response
-                        to prevent account enumeration.
-                        """)
-        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "202", description = "Password reset request accepted")
+        @Operation(summary = "Request password reset OTP", description = "Request a password reset OTP by email without revealing account existence or status.")
+        @ApiResponses({
+                        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "202", description = "Password reset request accepted"),
+                        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Invalid email format")
+        })
         @PostMapping("/password/forgot")
         public ResponseEntity<ApiResponse<Void>> forgotPassword(
                         @Valid @RequestBody ForgotPasswordRequest request) {
@@ -343,16 +356,11 @@ public class AuthController {
         // Reset Password
         // ==========================================
 
-        @Operation(summary = "Reset account password", description = """
-                        Reset password using a valid email OTP.
-
-                        On success, all existing login sessions
-                        and refresh tokens are revoked.
-
-                        MFA settings remain unchanged.
-                        """)
-        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Password reset successfully")
-        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Invalid request, password or OTP")
+        @Operation(summary = "Reset password with OTP", description = "Set a new password using a valid email OTP. Revokes all existing sessions and preserves MFA settings.")
+        @ApiResponses({
+                        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Password reset successfully; existing sessions revoked"),
+                        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Invalid OTP, account, or new password")
+        })
         @PostMapping("/password/reset")
         public ResponseEntity<ApiResponse<Void>> resetPassword(
                         @Valid @RequestBody ResetPasswordRequest request) {
@@ -387,20 +395,14 @@ public class AuthController {
         // Change Password
         // ==========================================
 
-        @Operation(summary = "Change account password", description = """
-                        Change the password of the authenticated user.
-
-                        Requires the current password.
-
-                        On success:
-                        - Updates the password hash.
-                        - Revokes all existing login sessions.
-                        - Revokes all refresh tokens.
-                        - Invalidates previously issued access tokens.
-                        - Preserves MFA configuration.
-                        - Requires the user to log in again.
-                        """)
-        @io.swagger.v3.oas.annotations.security.SecurityRequirement(name = "bearerAuth")
+        @Operation(summary = "Change password", description = "Change the authenticated user's password using the current password. Revokes all sessions and requires a new login.")
+        @ApiResponses({
+                        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Password changed successfully; all sessions revoked"),
+                        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Invalid current password or new password"),
+                        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "Missing, expired, or invalid access token"),
+                        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Account not eligible to change password")
+        })
+        @SecurityRequirement(name = "bearerAuth")
         @PostMapping("/password/change")
         public ResponseEntity<ApiResponse<Void>> changePassword(
                         @AuthenticationPrincipal Jwt jwt,
