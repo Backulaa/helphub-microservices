@@ -207,7 +207,9 @@ public class SecurityConfig {
                                                                 "/api/v1/auth/email/verify",
                                                                 "/api/v1/auth/login",
                                                                 "/api/v1/auth/refresh",
-                                                                "/api/v1/auth/mfa/login/verify")
+                                                                "/api/v1/auth/mfa/login/verify",
+                                                                "/api/v1/auth/password/forgot",
+                                                                "/api/v1/auth/password/reset")
                                                 .permitAll()
 
                                                 // Obtain a CSRF token
@@ -221,6 +223,12 @@ public class SecurityConfig {
                                                                 "/actuator/health",
                                                                 "/actuator/health/**")
                                                 .permitAll()
+
+                                                // Change Password requires authentication
+                                                .requestMatchers(
+                                                                HttpMethod.POST,
+                                                                "/api/v1/auth/password/change")
+                                                .authenticated()
 
                                                 // Admin-only APIs
                                                 .requestMatchers(
