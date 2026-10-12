@@ -1,12 +1,12 @@
-package com.helphub.identity.auth.service;
+package com.helphub.identity.auth.dto;
 
 import java.time.OffsetDateTime;
 import java.util.UUID;
 
 public record IssuedTokens(
-        String accessToken,
-        String refreshToken,
-        long expiresIn,
-        UUID sessionId,
-        OffsetDateTime sessionExpiresAt) {
+                String accessToken,
+                String refreshToken,
+                long expiresIn,
+                UUID sessionId,
+                OffsetDateTime sessionExpiresAt) {
 }

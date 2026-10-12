@@ -1,10 +1,10 @@
 package com.helphub.identity.infrastructure.security;
 
-import com.helphub.identity.auth.service.IssuedTokens;
-
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseCookie;
 import org.springframework.stereotype.Component;
+
+import com.helphub.identity.auth.dto.IssuedTokens;
 
 import java.time.Duration;
 import java.time.Instant;

@@ -1,6 +1,6 @@
 package com.helphub.identity.mfa.service;
 
-import com.helphub.identity.auth.service.IssuedTokens;
+import com.helphub.identity.auth.dto.IssuedTokens;
 import com.helphub.identity.auth.service.SessionAuthService;
 
 import com.helphub.identity.common.exception.BusinessException;
@@ -31,268 +31,268 @@ import java.util.UUID;
 @Service
 public class MfaService {
 
-    private final UserRepository userRepository;
-    private final LoginSessionRepository sessionRepository;
-    private final MfaChallengeRepository challengeRepository;
+        private final UserRepository userRepository;
+        private final LoginSessionRepository sessionRepository;
+        private final MfaChallengeRepository challengeRepository;
 
-    private final PasswordEncoder passwordEncoder;
-    private final MfaOtpService mfaOtpService;
-    private final SessionAuthService sessionAuthService;
+        private final PasswordEncoder passwordEncoder;
+        private final MfaOtpService mfaOtpService;
+        private final SessionAuthService sessionAuthService;
 
-    public MfaService(
-            UserRepository userRepository,
-            LoginSessionRepository sessionRepository,
-            MfaChallengeRepository challengeRepository,
-            PasswordEncoder passwordEncoder,
-            MfaOtpService mfaOtpService,
-            SessionAuthService sessionAuthService) {
-        this.userRepository = userRepository;
-        this.sessionRepository = sessionRepository;
-        this.challengeRepository = challengeRepository;
-        this.passwordEncoder = passwordEncoder;
-        this.mfaOtpService = mfaOtpService;
-        this.sessionAuthService = sessionAuthService;
-    }
-
-    // ==========================================
-    // Get MFA Status
-    // ==========================================
-
-    @Transactional(readOnly = true)
-    public MfaStatusResponse getMfaStatus(UUID userId) {
-
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new BusinessException(
-                        HttpStatus.NOT_FOUND,
-                        "USER_NOT_FOUND",
-                        "User not found"));
-
-        return new MfaStatusResponse(
-                user.isMfaEnabled(),
-                user.getMfaMethod(),
-                user.getMfaEnabledAt());
-    }
-
-    // ==========================================
-    // Start Setup or Disable
-    // ==========================================
-
-    @Transactional
-    public MfaChallenge start(
-            UUID userId,
-            UUID sessionId,
-            String currentPassword,
-            MfaChallengePurpose purpose) {
-        if (purpose == MfaChallengePurpose.LOGIN) {
-            throw new IllegalArgumentException(
-                    "LOGIN challenge is started during password login");
+        public MfaService(
+                        UserRepository userRepository,
+                        LoginSessionRepository sessionRepository,
+                        MfaChallengeRepository challengeRepository,
+                        PasswordEncoder passwordEncoder,
+                        MfaOtpService mfaOtpService,
+                        SessionAuthService sessionAuthService) {
+                this.userRepository = userRepository;
+                this.sessionRepository = sessionRepository;
+                this.challengeRepository = challengeRepository;
+                this.passwordEncoder = passwordEncoder;
+                this.mfaOtpService = mfaOtpService;
+                this.sessionAuthService = sessionAuthService;
         }
 
-        User user = getLockedUser(userId);
+        // ==========================================
+        // Get MFA Status
+        // ==========================================
 
-        if (user.getStatus() != AccountStatus.ACTIVE
-                || !user.isEmailVerified()) {
-            throw new BusinessException(
-                    HttpStatus.FORBIDDEN,
-                    "ACCOUNT_NOT_ELIGIBLE",
-                    "Account is not eligible for MFA changes");
+        @Transactional(readOnly = true)
+        public MfaStatusResponse getMfaStatus(UUID userId) {
+
+                User user = userRepository.findById(userId)
+                                .orElseThrow(() -> new BusinessException(
+                                                HttpStatus.NOT_FOUND,
+                                                "USER_NOT_FOUND",
+                                                "User not found"));
+
+                return new MfaStatusResponse(
+                                user.isMfaEnabled(),
+                                user.getMfaMethod(),
+                                user.getMfaEnabledAt());
         }
 
-        LoginSession session = getLockedSession(
-                userId,
-                sessionId);
+        // ==========================================
+        // Start Setup or Disable
+        // ==========================================
 
-        if (!passwordEncoder.matches(
-                currentPassword,
-                user.getPasswordHash())) {
-            throw new BusinessException(
-                    HttpStatus.UNAUTHORIZED,
-                    "INVALID_CREDENTIALS",
-                    "Current password is incorrect");
+        @Transactional
+        public MfaChallenge start(
+                        UUID userId,
+                        UUID sessionId,
+                        String currentPassword,
+                        MfaChallengePurpose purpose) {
+                if (purpose == MfaChallengePurpose.LOGIN) {
+                        throw new IllegalArgumentException(
+                                        "LOGIN challenge is started during password login");
+                }
+
+                User user = getLockedUser(userId);
+
+                if (user.getStatus() != AccountStatus.ACTIVE
+                                || !user.isEmailVerified()) {
+                        throw new BusinessException(
+                                        HttpStatus.FORBIDDEN,
+                                        "ACCOUNT_NOT_ELIGIBLE",
+                                        "Account is not eligible for MFA changes");
+                }
+
+                LoginSession session = getLockedSession(
+                                userId,
+                                sessionId);
+
+                if (!passwordEncoder.matches(
+                                currentPassword,
+                                user.getPasswordHash())) {
+                        throw new BusinessException(
+                                        HttpStatus.UNAUTHORIZED,
+                                        "INVALID_CREDENTIALS",
+                                        "Current password is incorrect");
+                }
+
+                if (purpose == MfaChallengePurpose.SETUP
+                                && user.isMfaEnabled()) {
+                        throw new BusinessException(
+                                        HttpStatus.CONFLICT,
+                                        "MFA_ALREADY_ENABLED",
+                                        "MFA is already enabled");
+                }
+
+                if (purpose == MfaChallengePurpose.DISABLE) {
+
+                        if (!user.isMfaEnabled()) {
+                                throw new BusinessException(
+                                                HttpStatus.CONFLICT,
+                                                "MFA_NOT_ENABLED",
+                                                "MFA is not enabled");
+                        }
+
+                        if (session.getAuthenticationLevel() != AuthenticationLevel.MFA) {
+                                throw new BusinessException(
+                                                HttpStatus.FORBIDDEN,
+                                                "MFA_AUTHENTICATION_REQUIRED",
+                                                "A fully MFA-authenticated session is required");
+                        }
+                }
+
+                return mfaOtpService.issue(
+                                user,
+                                session,
+                                purpose);
         }
 
-        if (purpose == MfaChallengePurpose.SETUP
-                && user.isMfaEnabled()) {
-            throw new BusinessException(
-                    HttpStatus.CONFLICT,
-                    "MFA_ALREADY_ENABLED",
-                    "MFA is already enabled");
+        // ==========================================
+        // Confirm Setup or Disable
+        // ==========================================
+
+        @Transactional
+        public boolean confirm(
+                        UUID userId,
+                        UUID sessionId,
+                        UUID challengeId,
+                        String otp,
+                        MfaChallengePurpose purpose) {
+                if (purpose == MfaChallengePurpose.LOGIN) {
+                        return false;
+                }
+
+                User user = getLockedUser(userId);
+
+                LoginSession session = getLockedSession(
+                                userId,
+                                sessionId);
+
+                MfaChallenge challenge = challengeRepository
+                                .findByIdForUpdate(challengeId)
+                                .orElse(null);
+
+                if (challenge == null
+                                || !challenge.getUser().getId().equals(userId)
+                                || challenge.getPurpose() != purpose
+                                || challenge.getSession() == null
+                                || !challenge.getSession().getId()
+                                                .equals(sessionId)
+                                || challenge.getSecurityVersion() != user.getSecurityVersion()
+                                || user.getStatus() != AccountStatus.ACTIVE
+                                || !user.isEmailVerified()) {
+                        return false;
+                }
+
+                if (purpose == MfaChallengePurpose.SETUP
+                                && user.isMfaEnabled()) {
+                        return false;
+                }
+
+                if (purpose == MfaChallengePurpose.DISABLE
+                                && (!user.isMfaEnabled()
+                                                || session.getAuthenticationLevel() != AuthenticationLevel.MFA)) {
+                        return false;
+                }
+
+                // A wrong OTP must NOT cause transaction rollback.
+                if (!mfaOtpService.verify(challenge, otp)) {
+                        return false;
+                }
+
+                OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
+
+                if (purpose == MfaChallengePurpose.SETUP) {
+
+                        user.setMfaEnabled(true);
+                        user.setMfaMethod(MfaMethod.EMAIL_OTP);
+                        user.setMfaEnabledAt(now);
+
+                } else {
+
+                        user.setMfaEnabled(false);
+                        user.setMfaMethod(null);
+                        user.setMfaEnabledAt(null);
+                }
+
+                // Invalidate tokens issued under older
+                // authentication requirements.
+                user.setSecurityVersion(
+                                user.getSecurityVersion() + 1);
+
+                sessionRepository.revokeAllActiveSessions(
+                                userId,
+                                now);
+
+                return true;
         }
 
-        if (purpose == MfaChallengePurpose.DISABLE) {
+        // ==========================================
+        // Verify MFA Login
+        // ==========================================
 
-            if (!user.isMfaEnabled()) {
-                throw new BusinessException(
-                        HttpStatus.CONFLICT,
-                        "MFA_NOT_ENABLED",
-                        "MFA is not enabled");
-            }
+        @Transactional
+        public IssuedTokens verifyLogin(
+                        UUID challengeId,
+                        String otp) {
+                MfaChallenge challenge = challengeRepository
+                                .findByIdForUpdate(challengeId)
+                                .orElse(null);
 
-            if (session.getAuthenticationLevel() != AuthenticationLevel.MFA) {
-                throw new BusinessException(
-                        HttpStatus.FORBIDDEN,
-                        "MFA_AUTHENTICATION_REQUIRED",
-                        "A fully MFA-authenticated session is required");
-            }
+                if (challenge == null
+                                || challenge.getPurpose() != MfaChallengePurpose.LOGIN
+                                || challenge.getSession() != null) {
+                        return null;
+                }
+
+                User user = getLockedUser(
+                                challenge.getUser().getId());
+
+                if (user.getStatus() != AccountStatus.ACTIVE
+                                || !user.isEmailVerified()
+                                || !user.isMfaEnabled()
+                                || user.getMfaMethod() != MfaMethod.EMAIL_OTP
+                                || challenge.getSecurityVersion() != user.getSecurityVersion()) {
+                        return null;
+                }
+
+                if (!mfaOtpService.verify(challenge, otp)) {
+                        return null;
+                }
+
+                // Only now may the backend create a login session
+                // and issue Access + Refresh tokens.
+                return sessionAuthService.issueAfterMfa(user);
         }
 
-        return mfaOtpService.issue(
-                user,
-                session,
-                purpose);
-    }
+        // ==========================================
+        // Private Helpers
+        // ==========================================
 
-    // ==========================================
-    // Confirm Setup or Disable
-    // ==========================================
-
-    @Transactional
-    public boolean confirm(
-            UUID userId,
-            UUID sessionId,
-            UUID challengeId,
-            String otp,
-            MfaChallengePurpose purpose) {
-        if (purpose == MfaChallengePurpose.LOGIN) {
-            return false;
+        private User getLockedUser(UUID userId) {
+                return userRepository.findByIdForUpdate(userId)
+                                .orElseThrow(() -> new BusinessException(
+                                                HttpStatus.NOT_FOUND,
+                                                "USER_NOT_FOUND",
+                                                "User not found"));
         }
 
-        User user = getLockedUser(userId);
+        private LoginSession getLockedSession(
+                        UUID userId,
+                        UUID sessionId) {
+                LoginSession session = sessionRepository
+                                .findByIdForUpdate(sessionId)
+                                .orElseThrow(() -> new BusinessException(
+                                                HttpStatus.UNAUTHORIZED,
+                                                "INVALID_SESSION",
+                                                "Invalid login session"));
 
-        LoginSession session = getLockedSession(
-                userId,
-                sessionId);
+                OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
 
-        MfaChallenge challenge = challengeRepository
-                .findByIdForUpdate(challengeId)
-                .orElse(null);
+                if (!session.getUser().getId().equals(userId)
+                                || session.getRevokedAt() != null
+                                || !session.getExpiresAt().isAfter(now)) {
+                        throw new BusinessException(
+                                        HttpStatus.UNAUTHORIZED,
+                                        "INVALID_SESSION",
+                                        "Invalid or expired login session");
+                }
 
-        if (challenge == null
-                || !challenge.getUser().getId().equals(userId)
-                || challenge.getPurpose() != purpose
-                || challenge.getSession() == null
-                || !challenge.getSession().getId()
-                        .equals(sessionId)
-                || challenge.getSecurityVersion() != user.getSecurityVersion()
-                || user.getStatus() != AccountStatus.ACTIVE
-                || !user.isEmailVerified()) {
-            return false;
+                return session;
         }
-
-        if (purpose == MfaChallengePurpose.SETUP
-                && user.isMfaEnabled()) {
-            return false;
-        }
-
-        if (purpose == MfaChallengePurpose.DISABLE
-                && (!user.isMfaEnabled()
-                        || session.getAuthenticationLevel() != AuthenticationLevel.MFA)) {
-            return false;
-        }
-
-        // A wrong OTP must NOT cause transaction rollback.
-        if (!mfaOtpService.verify(challenge, otp)) {
-            return false;
-        }
-
-        OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
-
-        if (purpose == MfaChallengePurpose.SETUP) {
-
-            user.setMfaEnabled(true);
-            user.setMfaMethod(MfaMethod.EMAIL_OTP);
-            user.setMfaEnabledAt(now);
-
-        } else {
-
-            user.setMfaEnabled(false);
-            user.setMfaMethod(null);
-            user.setMfaEnabledAt(null);
-        }
-
-        // Invalidate tokens issued under older
-        // authentication requirements.
-        user.setSecurityVersion(
-                user.getSecurityVersion() + 1);
-
-        sessionRepository.revokeAllActiveSessions(
-                userId,
-                now);
-
-        return true;
-    }
-
-    // ==========================================
-    // Verify MFA Login
-    // ==========================================
-
-    @Transactional
-    public IssuedTokens verifyLogin(
-            UUID challengeId,
-            String otp) {
-        MfaChallenge challenge = challengeRepository
-                .findByIdForUpdate(challengeId)
-                .orElse(null);
-
-        if (challenge == null
-                || challenge.getPurpose() != MfaChallengePurpose.LOGIN
-                || challenge.getSession() != null) {
-            return null;
-        }
-
-        User user = getLockedUser(
-                challenge.getUser().getId());
-
-        if (user.getStatus() != AccountStatus.ACTIVE
-                || !user.isEmailVerified()
-                || !user.isMfaEnabled()
-                || user.getMfaMethod() != MfaMethod.EMAIL_OTP
-                || challenge.getSecurityVersion() != user.getSecurityVersion()) {
-            return null;
-        }
-
-        if (!mfaOtpService.verify(challenge, otp)) {
-            return null;
-        }
-
-        // Only now may the backend create a login session
-        // and issue Access + Refresh tokens.
-        return sessionAuthService.issueAfterMfa(user);
-    }
-
-    // ==========================================
-    // Private Helpers
-    // ==========================================
-
-    private User getLockedUser(UUID userId) {
-        return userRepository.findByIdForUpdate(userId)
-                .orElseThrow(() -> new BusinessException(
-                        HttpStatus.NOT_FOUND,
-                        "USER_NOT_FOUND",
-                        "User not found"));
-    }
-
-    private LoginSession getLockedSession(
-            UUID userId,
-            UUID sessionId) {
-        LoginSession session = sessionRepository
-                .findByIdForUpdate(sessionId)
-                .orElseThrow(() -> new BusinessException(
-                        HttpStatus.UNAUTHORIZED,
-                        "INVALID_SESSION",
-                        "Invalid login session"));
-
-        OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
-
-        if (!session.getUser().getId().equals(userId)
-                || session.getRevokedAt() != null
-                || !session.getExpiresAt().isAfter(now)) {
-            throw new BusinessException(
-                    HttpStatus.UNAUTHORIZED,
-                    "INVALID_SESSION",
-                    "Invalid or expired login session");
-        }
-
-        return session;
-    }
 }
