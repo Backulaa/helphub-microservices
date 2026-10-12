@@ -100,6 +100,8 @@ springdoc:
   paths-to-match:
     - /api/v1/**
 
+  default-produces-media-type: application/json
+
 logging:
   level:
     root: INFO
