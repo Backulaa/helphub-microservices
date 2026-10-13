@@ -15,90 +15,90 @@ import java.util.UUID;
 
 @Entity
 @Table(name = "users", uniqueConstraints = {
-        @UniqueConstraint(name = "uk_users_email", columnNames = "email")
+                @UniqueConstraint(name = "uk_users_email", columnNames = "email")
 }, indexes = {
-        @Index(name = "idx_users_role_id", columnList = "role_id"),
-        @Index(name = "idx_users_status", columnList = "status")
+                @Index(name = "idx_users_role_id", columnList = "role_id"),
+                @Index(name = "idx_users_status", columnList = "status")
 })
 @Getter
 @Setter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class User extends AuditableEntity {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.UUID)
-    @Column(name = "id", nullable = false, updatable = false)
-    private UUID id;
+        @Id
+        @GeneratedValue(strategy = GenerationType.UUID)
+        @Column(name = "id", nullable = false, updatable = false)
+        private UUID id;
 
-    @Column(name = "email", nullable = false, length = 255)
-    private String email;
+        @Column(name = "email", nullable = false, length = 255)
+        private String email;
 
-    @Column(name = "password_hash", nullable = false, length = 255)
-    private String passwordHash;
+        @Column(name = "password_hash", nullable = false, length = 255)
+        private String passwordHash;
 
-    @Column(name = "full_name", nullable = false, length = 150)
-    private String fullName;
+        @Column(name = "full_name", nullable = false, length = 150)
+        private String fullName;
 
-    @Column(name = "phone_number", length = 20)
-    private String phoneNumber;
+        @Column(name = "phone_number", length = 20)
+        private String phoneNumber;
 
-    @Column(name = "date_of_birth")
-    private LocalDate dateOfBirth;
+        @Column(name = "date_of_birth")
+        private LocalDate dateOfBirth;
 
-    @Enumerated(EnumType.STRING)
-    @Column(name = "gender", length = 30)
-    private Gender gender;
+        @Enumerated(EnumType.STRING)
+        @Column(name = "gender", length = 30)
+        private Gender gender;
 
-    @Column(name = "avatar_url", columnDefinition = "TEXT")
-    private String avatarUrl;
+        @Column(name = "avatar_media_id")
+        private UUID avatarMediaId;
 
-    @Enumerated(EnumType.STRING)
-    @Column(name = "status", nullable = false, length = 30)
-    private AccountStatus status = AccountStatus.ACTIVE;
+        @Enumerated(EnumType.STRING)
+        @Column(name = "status", nullable = false, length = 30)
+        private AccountStatus status = AccountStatus.ACTIVE;
 
-    @Column(name = "is_email_verified", nullable = false)
-    private boolean emailVerified = false;
+        @Column(name = "is_email_verified", nullable = false)
+        private boolean emailVerified = false;
 
-    @Column(name = "email_verified_at")
-    private OffsetDateTime emailVerifiedAt;
+        @Column(name = "email_verified_at")
+        private OffsetDateTime emailVerifiedAt;
 
-    @Column(name = "is_mfa_enabled", nullable = false)
-    private boolean mfaEnabled = false;
+        @Column(name = "is_mfa_enabled", nullable = false)
+        private boolean mfaEnabled = false;
 
-    @Column(name = "mfa_enabled_at")
-    private OffsetDateTime mfaEnabledAt;
+        @Column(name = "mfa_enabled_at")
+        private OffsetDateTime mfaEnabledAt;
 
-    @Enumerated(EnumType.STRING)
-    @Column(name = "mfa_method", length = 30)
-    private MfaMethod mfaMethod;
+        @Enumerated(EnumType.STRING)
+        @Column(name = "mfa_method", length = 30)
+        private MfaMethod mfaMethod;
 
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "role_id", nullable = false, foreignKey = @ForeignKey(name = "fk_users_role"))
-    private Role role;
+        @ManyToOne(fetch = FetchType.LAZY, optional = false)
+        @JoinColumn(name = "role_id", nullable = false, foreignKey = @ForeignKey(name = "fk_users_role"))
+        private Role role;
 
-    @Column(name = "last_login_at")
-    private OffsetDateTime lastLoginAt;
+        @Column(name = "last_login_at")
+        private OffsetDateTime lastLoginAt;
 
-    @Column(name = "security_version", nullable = false)
-    private long securityVersion = 0L;
+        @Column(name = "security_version", nullable = false)
+        private long securityVersion = 0L;
 
-    @Version
-    @Column(name = "version")
-    private Long version;
+        @Version
+        @Column(name = "version")
+        private Long version;
 
-    public User(
-            String email,
-            String passwordHash,
-            String fullName,
-            Role role) {
-        this.email = email;
-        this.passwordHash = passwordHash;
-        this.fullName = fullName;
-        this.role = role;
+        public User(
+                        String email,
+                        String passwordHash,
+                        String fullName,
+                        Role role) {
+                this.email = email;
+                this.passwordHash = passwordHash;
+                this.fullName = fullName;
+                this.role = role;
 
-        this.status = AccountStatus.ACTIVE;
-        this.emailVerified = false;
-        this.mfaEnabled = false;
-        this.securityVersion = 0L;
-    }
+                this.status = AccountStatus.ACTIVE;
+                this.emailVerified = false;
+                this.mfaEnabled = false;
+                this.securityVersion = 0L;
+        }
 }
