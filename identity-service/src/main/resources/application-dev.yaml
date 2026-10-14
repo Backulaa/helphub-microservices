@@ -52,7 +52,9 @@ spring:
   sql:
     init:
       mode: always
-      data-locations: classpath:db/seed-roles.sql
+      data-locations: 
+        - classpath:db/seed-roles.sql
+        - classpath:db/seed-users.sql
       continue-on-error: false
 
 # ==========================================
@@ -76,9 +78,9 @@ app:
   mail:
     from: ${MAIL_FROM:no-reply@helphub.local}
 
-    security:
-      cookie:
-        secure: ${REFRESH_COOKIE_SECURE:false}
+  security:
+    cookie:
+      secure: ${REFRESH_COOKIE_SECURE:false}
 
     cors:
       allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:5173}
