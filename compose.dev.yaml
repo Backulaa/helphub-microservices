@@ -1,0 +1,13 @@
+services:
+  postgres:
+    ports:
+      - "127.0.0.1:5433:5432"
+
+  identity-service:
+    ports:
+      - "127.0.0.1:8081:8081"
+
+  mailpit:
+    ports:
+      - "127.0.0.1:1025:1025"
+      - "127.0.0.1:8025:8025"
