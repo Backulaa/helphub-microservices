@@ -1,0 +1,36 @@
+spring:
+  application:
+    name: identity-service
+
+server:
+  port: ${SERVER_PORT:8081}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+
+security:
+  otp:
+    hmac-key-base64: ${OTP_HMAC_KEY_BASE64}
+
+  jwt:
+    private-key-path: ${JWT_PRIVATE_KEY_PATH:../infrastructure/keys/private.pem}
+    public-key-path: ${JWT_PUBLIC_KEY_PATH:../infrastructure/keys/public.pem}
+    key-id: ${JWT_KEY_ID:helphub-rs256-2026-01}
+    issuer: ${JWT_ISSUER:helphub-identity}
+    audience: ${JWT_AUDIENCE:helphub-services}
+    access-token-minutes: 15
+    session-days: 14
+
+app:
+  mail:
+    from: ${MAIL_FROM:no-reply@helphub.local}
+
+  security:
+    cookie:
+      secure: ${REFRESH_COOKIE_SECURE:false}
+
+    cors:
+      allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:5173}

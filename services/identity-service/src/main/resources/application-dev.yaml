@@ -1,0 +1,98 @@
+spring:
+  # Read local .env when running Spring Boot
+  # directly from the project root.
+  config:
+    import: "optional:file:../.env[.properties]"
+
+  # ==========================================
+  # PostgreSQL
+  # ==========================================
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5433/helphub_identity}
+    username: ${DB_USER:${IDENTITY_DB_USER:helphub}}
+    password: ${DB_PASSWORD:${IDENTITY_DB_PASSWORD}}
+    driver-class-name: org.postgresql.Driver
+
+  # ==========================================
+  # JPA / Hibernate
+  # ==========================================
+  jpa:
+    open-in-view: false
+
+    # Defer datasource initialization until after the application context is fully initialized.
+    defer-datasource-initialization: true
+
+    hibernate:
+      ddl-auto: update
+
+    properties:
+      hibernate:
+        format_sql: true
+        jdbc:
+          time_zone: UTC
+        timezone:
+          default_storage: NORMALIZE_UTC
+
+  # ==========================================
+  # Email / SMTP
+  # ==========================================
+  mail:
+    host: ${MAIL_HOST:localhost}
+    port: ${MAIL_PORT:1025}
+    properties:
+      "[mail.smtp.auth]": false
+      "[mail.smtp.starttls.enable]": false
+      "[mail.smtp.connectiontimeout]": 5000
+      "[mail.smtp.timeout]": 5000
+      "[mail.smtp.writetimeout]": 5000
+
+  # ==========================================
+  # SEED ROLE DATA
+  # ==========================================
+  sql:
+    init:
+      mode: always
+      data-locations: 
+        - classpath:db/seed-roles.sql
+        - classpath:db/seed-users.sql
+      continue-on-error: false
+
+# ==========================================
+# Application Settings
+# ==========================================
+app:
+  mail:
+    from: ${MAIL_FROM:no-reply@helphub.local}
+
+  security:
+    cookie:
+      secure: ${REFRESH_COOKIE_SECURE:false}
+
+    cors:
+      allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:5173}
+
+# ==========================================
+# Swagger / OpenAPI
+# ==========================================
+springdoc:
+  api-docs:
+    enabled: true
+    path: /v1/api-docs
+
+  swagger-ui:
+    enabled: true
+    path: /swagger-ui.html
+    operations-sorter: method
+    tags-sorter: alpha
+
+  paths-to-match:
+    - /api/v1/**
+
+  default-produces-media-type: application/json
+
+logging:
+  level:
+    root: INFO
+    org.springframework.web: DEBUG
+    org.springframework.security: DEBUG
+    com.helphub: DEBUG
