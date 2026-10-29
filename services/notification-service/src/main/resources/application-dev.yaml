@@ -1,0 +1,47 @@
+spring:
+  # ==========================================
+  # Load root .env for local Maven execution
+  # ==========================================
+  config:
+    import: "optional:file:../../.env[.properties]"
+
+  # ==========================================
+  # PostgreSQL
+  # ==========================================
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5433/helphub_notification}
+    username: ${DB_USER:${NOTIFICATION_DB_USER:helphub_notification_app}}
+    password: ${DB_PASSWORD:${NOTIFICATION_DB_PASSWORD}}
+    driver-class-name: org.postgresql.Driver
+
+    hikari:
+      maximum-pool-size: 5
+      minimum-idle: 1
+
+  # ==========================================
+  # JPA / Hibernate
+  # ==========================================
+  jpa:
+    open-in-view: false
+
+    hibernate:
+      ddl-auto: update
+
+    properties:
+      hibernate:
+        format_sql: true
+        jdbc:
+          time_zone: UTC
+        timezone:
+          default_storage: NORMALIZE_UTC
+
+# ==========================================
+# Logging
+# ==========================================
+logging:
+  level:
+    root: INFO
+    org.springframework.web: INFO
+    org.springframework.amqp: INFO
+    org.hibernate.SQL: DEBUG
+    com.helphub.notification: DEBUG

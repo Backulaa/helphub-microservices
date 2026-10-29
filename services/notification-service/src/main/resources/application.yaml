@@ -1,0 +1,53 @@
+spring:
+  application:
+    name: notification-service
+
+  # ==========================================
+  # RabbitMQ
+  # ==========================================
+  rabbitmq:
+    host: ${RABBITMQ_HOST:localhost}
+    port: ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_USER}
+    password: ${RABBITMQ_PASSWORD}
+    virtual-host: ${RABBITMQ_VHOST:helphub}
+
+    # Publisher reliability
+    publisher-confirm-type: correlated
+    publisher-returns: true
+
+    template:
+      mandatory: true
+
+    dynamic: true
+
+    # Consumer settings
+    listener:
+      simple:
+        acknowledge-mode: auto
+        concurrency: 1
+        max-concurrency: 1
+        prefetch: 10
+        default-requeue-rejected: false
+
+# ==========================================
+# Server
+# ==========================================
+server:
+  port: ${SERVER_PORT:8083}
+
+# ==========================================
+# Actuator
+# ==========================================
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+
+app:
+  security:
+    jwt:
+      issuer: ${JWT_ISSUER:helphub-identity}
+      audience: ${JWT_AUDIENCE:helphub-services}
+      jwk-set-uri: ${IDENTITY_JWKS_URI:http://localhost:8081/internal/jwks}
