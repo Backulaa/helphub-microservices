@@ -11,7 +11,6 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
 
-import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
@@ -26,16 +25,10 @@ import org.springframework.security.oauth2.server.resource.authentication.JwtGra
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
 
-import org.springframework.web.cors.CorsConfiguration;
-import org.springframework.web.cors.CorsConfigurationSource;
-import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
-
 import tools.jackson.databind.json.JsonMapper;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
-import java.util.Arrays;
-import java.util.List;
 
 @Configuration
 @EnableMethodSecurity
@@ -87,50 +80,6 @@ public class SecurityConfig {
         }
 
         // ==========================================
-        // CORS
-        // ==========================================
-
-        @Bean
-        public CorsConfigurationSource corsConfigurationSource(
-                        @Value("${app.security.cors.allowed-origins:http://localhost:5173}") String allowedOrigins) {
-                CorsConfiguration config = new CorsConfiguration();
-
-                List<String> origins = Arrays.stream(
-                                allowedOrigins.split(","))
-                                .map(String::trim)
-                                .filter(origin -> !origin.isBlank())
-                                .toList();
-
-                config.setAllowedOrigins(origins);
-
-                config.setAllowedMethods(
-                                List.of(
-                                                "GET",
-                                                "POST",
-                                                "PUT",
-                                                "PATCH",
-                                                "DELETE",
-                                                "OPTIONS"));
-
-                config.setAllowedHeaders(
-                                List.of(
-                                                "Authorization",
-                                                "Content-Type",
-                                                "X-XSRF-TOKEN"));
-
-                config.setAllowCredentials(true);
-                config.setMaxAge(3600L);
-
-                UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
-
-                source.registerCorsConfiguration(
-                                "/**",
-                                config);
-
-                return source;
-        }
-
-        // ==========================================
         // Security Filter Chain
         // ==========================================
 
@@ -142,8 +91,9 @@ public class SecurityConfig {
                         CookieCsrfTokenRepository csrfTokenRepository) throws Exception {
 
                 http
-                                // Enable CORS before authorization.
-                                .cors(Customizer.withDefaults())
+
+                                // Disable CORS for now, as it is handled by the API Gateway.
+                                .cors(AbstractHttpConfigurer::disable)
 
                                 // CSRF is required for cookie-based refresh.
                                 .csrf(csrf -> csrf
