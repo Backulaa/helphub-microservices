@@ -73,6 +73,12 @@ create_database \
     "$IDENTITY_DB_USER" \
     "$IDENTITY_DB_PASSWORD"
 
+# Notification
+create_database \
+    "$NOTIFICATION_DB_NAME" \
+    "$NOTIFICATION_DB_USER" \
+    "$NOTIFICATION_DB_PASSWORD"
+
 # Support
 create_database \
     "$SUPPORT_DB_NAME" \
