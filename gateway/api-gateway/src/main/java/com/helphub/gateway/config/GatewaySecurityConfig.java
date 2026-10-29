@@ -19,87 +19,92 @@ import java.util.UUID;
 @Configuration
 public class GatewaySecurityConfig {
 
-    @Bean
-    public SecurityWebFilterChain securityWebFilterChain(
-            ServerHttpSecurity http) {
+        @Bean
+        public SecurityWebFilterChain securityWebFilterChain(
+                        ServerHttpSecurity http) {
 
-        return http
-                .csrf(ServerHttpSecurity.CsrfSpec::disable)
-                .httpBasic(ServerHttpSecurity.HttpBasicSpec::disable)
-                .formLogin(ServerHttpSecurity.FormLoginSpec::disable)
+                return http
+                                .csrf(ServerHttpSecurity.CsrfSpec::disable)
+                                .httpBasic(ServerHttpSecurity.HttpBasicSpec::disable)
+                                .formLogin(ServerHttpSecurity.FormLoginSpec::disable)
 
-                .authorizeExchange(auth -> auth
-                        .pathMatchers(HttpMethod.OPTIONS, "/**")
-                        .permitAll()
+                                .authorizeExchange(auth -> auth
+                                                .pathMatchers(HttpMethod.OPTIONS, "/**")
+                                                .permitAll()
 
-                        .pathMatchers(HttpMethod.GET,
-                                "/actuator/health",
-                                "/actuator/health/**",
-                                "/api/v1/auth/csrf")
-                        .permitAll()
+                                                .pathMatchers(HttpMethod.GET,
+                                                                "/actuator/health",
+                                                                "/actuator/health/**",
+                                                                "/api/v1/auth/csrf")
+                                                .permitAll()
 
-                        .pathMatchers(HttpMethod.POST,
-                                "/api/v1/auth/register",
-                                "/api/v1/auth/email/resend",
-                                "/api/v1/auth/email/verify",
-                                "/api/v1/auth/login",
-                                "/api/v1/auth/refresh",
-                                "/api/v1/auth/mfa/login/verify",
-                                "/api/v1/auth/password/forgot",
-                                "/api/v1/auth/password/reset")
-                        .permitAll()
+                                                .pathMatchers(HttpMethod.POST,
+                                                                "/api/v1/auth/register",
+                                                                "/api/v1/auth/email/resend",
+                                                                "/api/v1/auth/email/verify",
+                                                                "/api/v1/auth/login",
+                                                                "/api/v1/auth/refresh",
+                                                                "/api/v1/auth/mfa/login/verify",
+                                                                "/api/v1/auth/password/forgot",
+                                                                "/api/v1/auth/password/reset")
+                                                .permitAll()
 
-                        .anyExchange().authenticated())
+                                                .pathMatchers(
+                                                                "/api/v1/notifications",
+                                                                "/api/v1/notifications/**")
+                                                .authenticated()
 
-                .oauth2ResourceServer(oauth -> oauth.jwt(Customizer.withDefaults()))
+                                                .anyExchange().authenticated())
 
-                .build();
-    }
+                                .oauth2ResourceServer(oauth -> oauth.jwt(Customizer.withDefaults()))
 
-    @Bean
-    public ReactiveJwtDecoder jwtDecoder(
-            @Value("${security.jwt.jwk-set-uri}") String jwksUri,
-            @Value("${security.jwt.issuer}") String issuer,
-            @Value("${security.jwt.audience}") String audience) {
+                                .build();
+        }
 
-        NimbusReactiveJwtDecoder decoder = NimbusReactiveJwtDecoder
-                .withJwkSetUri(jwksUri)
-                .jwsAlgorithm(SignatureAlgorithm.RS256)
-                .build();
+        @Bean
+        public ReactiveJwtDecoder jwtDecoder(
+                        @Value("${security.jwt.jwk-set-uri}") String jwksUri,
+                        @Value("${security.jwt.issuer}") String issuer,
+                        @Value("${security.jwt.audience}") String audience) {
 
-        OAuth2TokenValidator<Jwt> defaults = JwtValidators.createDefaultWithIssuer(issuer);
+                NimbusReactiveJwtDecoder decoder = NimbusReactiveJwtDecoder
+                                .withJwkSetUri(jwksUri)
+                                .jwsAlgorithm(SignatureAlgorithm.RS256)
+                                .build();
 
-        decoder.setJwtValidator(jwt -> {
-            OAuth2TokenValidatorResult result = defaults.validate(jwt);
+                OAuth2TokenValidator<Jwt> defaults = JwtValidators.createDefaultWithIssuer(issuer);
 
-            if (result.hasErrors()) {
-                return result;
-            }
+                decoder.setJwtValidator(jwt -> {
+                        OAuth2TokenValidatorResult result = defaults.validate(jwt);
 
-            try {
-                boolean valid = jwt.getAudience().contains(audience)
-                        && "access".equals(
-                                jwt.getClaimAsString("token_type"))
-                        && jwt.getClaim("sv") instanceof Number
-                        && jwt.getClaimAsString("role") != null;
+                        if (result.hasErrors()) {
+                                return result;
+                        }
 
-                UUID.fromString(jwt.getSubject());
-                UUID.fromString(jwt.getClaimAsString("sid"));
+                        try {
+                                boolean valid = jwt.getAudience().contains(audience)
+                                                && "access".equals(
+                                                                jwt.getClaimAsString("token_type"))
+                                                && jwt.getClaim("sv") instanceof Number
+                                                && jwt.getClaimAsString("role") != null;
 
-                if (valid) {
-                    return OAuth2TokenValidatorResult.success();
-                }
-            } catch (RuntimeException ignored) {
-                // Reject invalid required claims.
-            }
+                                UUID.fromString(jwt.getSubject());
+                                UUID.fromString(jwt.getClaimAsString("sid"));
 
-            return OAuth2TokenValidatorResult.failure(
-                    new OAuth2Error(
-                            "invalid_token",
-                            "Required JWT claims are invalid",
-                            null));
-        });
+                                if (valid) {
+                                        return OAuth2TokenValidatorResult.success();
+                                }
+                        } catch (RuntimeException ignored) {
+                                // Reject invalid required claims.
+                        }
 
-        return decoder;
-    }
+                        return OAuth2TokenValidatorResult.failure(
+                                        new OAuth2Error(
+                                                        "invalid_token",
+                                                        "Required JWT claims are invalid",
+                                                        null));
+                });
+
+                return decoder;
+        }
 }
