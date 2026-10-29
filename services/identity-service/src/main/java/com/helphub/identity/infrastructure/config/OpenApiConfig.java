@@ -5,37 +5,48 @@ import io.swagger.v3.oas.models.info.Info;
 import io.swagger.v3.oas.models.info.Contact;
 import io.swagger.v3.oas.annotations.enums.SecuritySchemeType;
 import io.swagger.v3.oas.annotations.security.SecurityScheme;
+import io.swagger.v3.oas.models.servers.Server;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+
+import java.util.List;
 
 @SecurityScheme(name = "bearerAuth", type = SecuritySchemeType.HTTP, scheme = "bearer", bearerFormat = "JWT", description = "Paste your JWT Access Token")
 @Configuration
 public class OpenApiConfig {
 
-    @Bean
-    public OpenAPI identityServiceOpenAPI() {
+        @Bean
+        public OpenAPI identityServiceOpenAPI() {
 
-        return new OpenAPI()
-                .info(
-                        new Info()
-                                .title("HelpHub - IdentityService API")
-                                .description(
-                                        """
-                                                Identity and Access Management Service
-                                                for the HelpHub Microservices System.
+                return new OpenAPI()
+                                .servers(List.of(
+                                                new Server()
+                                                                .url("http://localhost:8081")
+                                                                .description("Identity Service - Direct"),
 
-                                                Main features:
-                                                - User Registration
-                                                - Email Verification
-                                                - Authentication
-                                                - JWT & Refresh Token
-                                                - Multi-Factor Authentication
-                                                - User & Role Management
-                                                """)
-                                .version("v1.0.0")
-                                .contact(
-                                        new Contact()
-                                                .name("HelpHub Development Team")));
-    }
+                                                new Server()
+                                                                .url("http://localhost:8080")
+                                                                .description("API Gateway - Local")))
+                                .info(
+                                                new Info()
+                                                                .title("HelpHub - IdentityService API")
+                                                                .description(
+                                                                                """
+                                                                                                Identity and Access Management Service
+                                                                                                for the HelpHub Microservices System.
+
+                                                                                                Main features:
+                                                                                                - User Registration
+                                                                                                - Email Verification
+                                                                                                - Authentication
+                                                                                                - JWT & Refresh Token
+                                                                                                - Multi-Factor Authentication
+                                                                                                - User & Role Management
+                                                                                                """)
+                                                                .version("v1.0.0")
+                                                                .contact(
+                                                                                new Contact()
+                                                                                                .name("HelpHub Development Team")));
+        }
 }
