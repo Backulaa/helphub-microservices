@@ -16,6 +16,7 @@ import com.helphub.identity.session.repository.RefreshTokenRepository;
 import com.helphub.identity.user.entity.AccountStatus;
 import com.helphub.identity.user.entity.User;
 import com.helphub.identity.user.repository.UserRepository;
+import com.helphub.identity.messaging.event.UserRegisteredEvent;
 
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.http.HttpStatus;
@@ -178,10 +179,13 @@ public class AuthService {
         }
 
         @Transactional
-        public boolean verifyEmailOtp(String rawEmail, String providedOtp) {
+        public boolean verifyEmailOtp(
+                        String rawEmail,
+                        String providedOtp) {
 
                 String email = EmailNormalizer.normalize(rawEmail);
 
+                // 1. Find user.
                 User user = userRepository
                                 .findByEmail(email)
                                 .orElse(null);
@@ -190,7 +194,7 @@ public class AuthService {
                         return false;
                 }
 
-                // Lock before checking mutable security state.
+                // 2. Lock user to prevent concurrent verification.
                 User lockedUser = userRepository
                                 .findByIdForUpdate(user.getId())
                                 .orElse(null);
@@ -199,16 +203,27 @@ public class AuthService {
                         return false;
                 }
 
+                // 3. Verify account eligibility.
                 if (lockedUser.getStatus() != AccountStatus.ACTIVE
                                 || lockedUser.isEmailVerified()) {
                         return false;
                 }
 
-                // EmailOtpService updates the User and OTP
-                // inside this same transaction.
-                return emailOtpService.verifyEmailOtp(
+                // 4. Verify OTP and update email verification status.
+                boolean verified = emailOtpService.verifyEmailOtp(
                                 lockedUser,
                                 providedOtp);
+
+                if (!verified) {
+                        return false;
+                }
+
+                // 5. Publish event only after successful verification.
+                // RabbitMQ publisher executes AFTER_COMMIT.
+                eventPublisher.publishEvent(
+                                UserRegisteredEvent.create(lockedUser.getId()));
+
+                return true;
         }
 
         @Transactional

@@ -2,7 +2,7 @@ spring:
   # Read local .env when running Spring Boot
   # directly from the project root.
   config:
-    import: "optional:file:../.env[.properties]"
+    import: "optional:file:../../.env[.properties]"
 
   # ==========================================
   # PostgreSQL
@@ -68,9 +68,6 @@ app:
     cookie:
       secure: ${REFRESH_COOKIE_SECURE:false}
 
-    cors:
-      allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:5173}
-
 # ==========================================
 # Swagger / OpenAPI
 # ==========================================
@@ -84,7 +81,8 @@ springdoc:
     path: /swagger-ui.html
     operations-sorter: method
     tags-sorter: alpha
-
+    with-credentials: true
+    
   paths-to-match:
     - /api/v1/**
 
