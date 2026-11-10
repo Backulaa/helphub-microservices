@@ -49,3 +49,7 @@ app:
   security:
     cookie:
       secure: ${REFRESH_COOKIE_SECURE:false}
+
+logging:
+  pattern:
+    level: "%5p [requestId=%X{requestId:-none}]"

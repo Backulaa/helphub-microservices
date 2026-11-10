@@ -1,6 +1,7 @@
 package com.helphub.identity.messaging.publisher;
 
 import com.helphub.identity.messaging.event.UserRegisteredEvent;
+import com.helphub.observability.CorrelationContext;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -41,20 +42,31 @@ public class UserRegisteredEventPublisher {
         @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
         public void publish(UserRegisteredEvent event) {
 
-                try {
+                String requestId = CorrelationContext.currentOrNew();
+
+                try (CorrelationContext.Scope ignored = CorrelationContext.open(requestId)) {
                         // 1. Serialize the event to JSON.
                         byte[] payload = jsonMapper.writeValueAsBytes(event);
 
                         // 2. Set AMQP message properties.
                         MessageProperties properties = new MessageProperties();
+
                         properties.setContentType(
                                         MessageProperties.CONTENT_TYPE_JSON);
+
                         properties.setContentEncoding(
                                         StandardCharsets.UTF_8.name());
+
                         properties.setDeliveryMode(
                                         MessageDeliveryMode.PERSISTENT);
+
                         properties.setMessageId(
                                         event.eventId().toString());
+
+                        // Propagate HTTP Request ID through RabbitMQ.
+                        properties.setHeader(
+                                        CorrelationContext.HEADER_NAME,
+                                        requestId);
 
                         // 3. Build the RabbitMQ message.
                         Message message = new Message(payload, properties);
@@ -74,47 +86,54 @@ public class UserRegisteredEventPublisher {
                                         event.eventId(),
                                         event.data().userId());
 
-                        // 6. Check asynchronous publisher confirmation.
+                        // 6. Restore MDC inside asynchronous confirmation callback.
                         correlationData.getFuture().whenComplete(
                                         (confirm, error) -> {
 
-                                                if (error != null) {
-                                                        log.error(
-                                                                        "RabbitMQ publisher confirmation failed. eventId={}",
-                                                                        event.eventId(),
-                                                                        error);
-                                                        return;
-                                                }
+                                                try (CorrelationContext.Scope callbackScope = CorrelationContext
+                                                                .open(requestId)) {
 
-                                                if (correlationData.getReturned() != null) {
-                                                        log.error(
-                                                                        "RabbitMQ message was not routed. eventId={}",
+                                                        if (error != null) {
+                                                                log.error(
+                                                                                "RabbitMQ publisher confirmation failed. eventId={}",
+                                                                                event.eventId(),
+                                                                                error);
+                                                                return;
+                                                        }
+
+                                                        if (correlationData.getReturned() != null) {
+                                                                log.error(
+                                                                                "RabbitMQ message was not routed. eventId={}",
+                                                                                event.eventId());
+                                                                return;
+                                                        }
+
+                                                        if (confirm == null || !confirm.ack()) {
+                                                                log.error(
+                                                                                "RabbitMQ did not ACK event. eventId={}, reason={}",
+                                                                                event.eventId(),
+                                                                                confirm != null
+                                                                                                ? confirm.reason()
+                                                                                                : "No confirmation received");
+                                                                return;
+                                                        }
+
+                                                        log.info(
+                                                                        "RabbitMQ confirmed user registered event. eventId={}",
                                                                         event.eventId());
-                                                        return;
                                                 }
-
-                                                if (confirm == null || !confirm.ack()) {
-                                                        log.error(
-                                                                        "RabbitMQ did not ACK published event. eventId={}, reason={}",
-                                                                        event.eventId(),
-                                                                        confirm != null ? confirm.reason()
-                                                                                        : "No confirmation received");
-                                                        return;
-                                                }
-
-                                                log.info(
-                                                                "RabbitMQ confirmed user registered event. eventId={}",
-                                                                event.eventId());
                                         });
 
                 } catch (Exception exception) {
 
-                        // The user registration has already committed.
-                        // Log the failure without changing the API response.
-                        log.error(
-                                        "Unable to publish user registered event. eventId={}",
-                                        event.eventId(),
-                                        exception);
+                        try (CorrelationContext.Scope errorScope = CorrelationContext.open(requestId)) {
+
+                                // Registration has already committed.
+                                log.error(
+                                                "Unable to publish user registered event. eventId={}",
+                                                event.eventId(),
+                                                exception);
+                        }
                 }
         }
 }
