@@ -1,38 +1,47 @@
 # ==========================================
-# Stage 1: Build application
+# BUILD STAGE
 # ==========================================
 FROM maven:3.9-eclipse-temurin-21 AS build
 
 WORKDIR /app
 
-# Copy Maven configuration first for layer caching
-COPY pom.xml .
+COPY pom.xml ./
 
-# Download dependencies
-RUN mvn -B -ntp dependency:go-offline
+COPY shared/helphub-observability/pom.xml \
+     shared/helphub-observability/pom.xml
 
-# Copy application source
-COPY src ./src
+COPY gateway/api-gateway/pom.xml \
+     gateway/api-gateway/pom.xml
 
-# Build executable Spring Boot JAR
-RUN mvn -B -ntp clean package -DskipTests
+COPY services/identity-service/pom.xml \
+     services/identity-service/pom.xml
 
+COPY services/notification-service/pom.xml \
+     services/notification-service/pom.xml
+
+COPY shared/helphub-observability/src/ \
+     shared/helphub-observability/src/
+
+COPY services/notification-service/src/ \
+     services/notification-service/src/
+
+RUN mvn -B -ntp \
+    -pl services/notification-service \
+    -am package -DskipTests
 
 # ==========================================
-# Stage 2: Runtime
+# RUNTIME STAGE
 # ==========================================
 FROM eclipse-temurin:21-jre
 
 WORKDIR /app
 
-# Copy executable JAR from build stage
-COPY --from=build /app/target/*.jar app.jar
+COPY --from=build \
+    /app/services/notification-service/target/notification-service-0.0.1-SNAPSHOT.jar \
+    app.jar
 
-# Run application as non-root user
-USER 10001
-
-# Notification Service HTTP port
 EXPOSE 8083
 
-# Start Spring Boot
+USER 10001
+
 ENTRYPOINT ["java", "-jar", "app.jar"]
