@@ -73,6 +73,11 @@
 			<version>3.1.1</version>
 		</dependency>
 		<dependency>
+			<groupId>com.helphub</groupId>
+			<artifactId>helphub-observability</artifactId>
+			<version>0.0.1-SNAPSHOT</version>
+		</dependency>
+		<dependency>
 			<groupId>org.postgresql</groupId>
 			<artifactId>postgresql</artifactId>
 			<scope>runtime</scope>
