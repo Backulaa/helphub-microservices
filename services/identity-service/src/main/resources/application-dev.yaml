@@ -94,3 +94,7 @@ logging:
     org.springframework.web: DEBUG
     org.springframework.security: DEBUG
     com.helphub: DEBUG
+
+    # Reduce verbose request/response processing logs
+    org.springframework.web.servlet.mvc.method.annotation.RequestResponseBodyMethodProcessor: INFO
+    org.springframework.web.servlet.mvc.method.annotation.HttpEntityMethodProcessor: INFO
