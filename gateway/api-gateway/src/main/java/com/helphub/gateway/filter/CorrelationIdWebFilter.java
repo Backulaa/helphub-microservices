@@ -1,7 +1,9 @@
-
 package com.helphub.gateway.filter;
 
 import java.util.UUID;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
@@ -17,45 +19,65 @@ import reactor.core.publisher.Mono;
 @Order(Ordered.HIGHEST_PRECEDENCE)
 public class CorrelationIdWebFilter implements WebFilter {
 
-    private static final String REQUEST_ID_HEADER = "X-Request-ID";
+        private static final String REQUEST_ID_HEADER = "X-Request-ID";
+        private static final String MDC_KEY = "requestId";
 
-    @Override
-    public Mono<Void> filter(
-            ServerWebExchange exchange,
-            WebFilterChain chain) {
+        private static final Logger log = LoggerFactory.getLogger(CorrelationIdWebFilter.class);
 
-        // Generate a trusted request ID at the gateway.
-        String requestId = UUID.randomUUID().toString();
+        @Override
+        public Mono<Void> filter(
+                        ServerWebExchange exchange,
+                        WebFilterChain chain) {
 
-        // Forward the request ID to downstream services.
-        // Remove client-supplied identity headers.
-        ServerHttpRequest request = exchange.getRequest()
-                .mutate()
-                .headers(headers -> {
-                    headers.set(REQUEST_ID_HEADER, requestId);
-                    headers.remove("X-User-Id");
-                    headers.remove("X-User-Role");
-                })
-                .build();
+                // Generate a trusted request ID at the gateway.
+                String requestId = UUID.randomUUID().toString();
 
-        ServerWebExchange mutatedExchange = exchange.mutate()
-                .request(request)
-                .build();
+                // Forward the request ID to downstream services.
+                // Remove client-supplied identity headers.
+                ServerHttpRequest request = exchange.getRequest()
+                                .mutate()
+                                .headers(headers -> {
+                                        headers.set(REQUEST_ID_HEADER, requestId);
+                                        headers.remove("X-User-Id");
+                                        headers.remove("X-User-Role");
+                                })
+                                .build();
 
-        // Ensure the response includes the ID,
-        // including responses rejected by Spring Security.
-        mutatedExchange.getResponse()
-                .getHeaders()
-                .set(REQUEST_ID_HEADER, requestId);
+                ServerWebExchange mutatedExchange = exchange.mutate()
+                                .request(request)
+                                .build();
 
-        mutatedExchange.getResponse().beforeCommit(() -> {
-            mutatedExchange.getResponse()
-                    .getHeaders()
-                    .set(REQUEST_ID_HEADER, requestId);
+                // Ensure the response includes the ID,
+                // including responses rejected by Spring Security.
+                mutatedExchange.getResponse()
+                                .getHeaders()
+                                .set(REQUEST_ID_HEADER, requestId);
 
-            return Mono.empty();
-        });
+                mutatedExchange.getResponse().beforeCommit(() -> {
+                        mutatedExchange.getResponse()
+                                        .getHeaders()
+                                        .set(REQUEST_ID_HEADER, requestId);
 
-        return chain.filter(mutatedExchange);
-    }
+                        return Mono.empty();
+                });
+
+                String method = request.getMethod().name();
+                String path = request.getURI().getRawPath();
+
+                return Mono.defer(() -> {
+
+                        log.info(
+                                        "Incoming HTTP request method={} path={}",
+                                        method,
+                                        path);
+
+                        return chain.filter(mutatedExchange)
+                                        .doFinally(signal -> log.info(
+                                                        "HTTP request finished method={} path={} signal={}",
+                                                        method,
+                                                        path,
+                                                        signal));
+
+                }).contextWrite(context -> context.put(MDC_KEY, requestId));
+        }
 }
