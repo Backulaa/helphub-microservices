@@ -53,3 +53,9 @@ app:
 logging:
   pattern:
     level: "%5p [requestId=%X{requestId:-none}]"
+
+springdoc:
+  api-docs:
+    enabled: false
+  swagger-ui:
+    enabled: false

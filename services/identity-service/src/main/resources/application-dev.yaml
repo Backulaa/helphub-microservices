@@ -77,11 +77,7 @@ springdoc:
     path: /v1/api-docs
 
   swagger-ui:
-    enabled: true
-    path: /swagger-ui.html
-    operations-sorter: method
-    tags-sorter: alpha
-    with-credentials: true
+    enabled: false
     
   paths-to-match:
     - /api/v1/**

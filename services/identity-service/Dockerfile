@@ -18,6 +18,9 @@ COPY gateway/api-gateway/pom.xml \
 COPY services/identity-service/pom.xml \
      services/identity-service/pom.xml
 
+COPY services/media-service/pom.xml \
+     services/media-service/pom.xml
+
 COPY services/notification-service/pom.xml \
      services/notification-service/pom.xml
 

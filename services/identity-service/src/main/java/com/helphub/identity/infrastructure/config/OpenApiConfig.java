@@ -22,12 +22,13 @@ public class OpenApiConfig {
                 return new OpenAPI()
                                 .servers(List.of(
                                                 new Server()
-                                                                .url("http://localhost:8081")
-                                                                .description("Identity Service - Direct"),
+                                                                .url("/")
+                                                                .description("API Gateway - Current Host"),
 
                                                 new Server()
-                                                                .url("http://localhost:8080")
-                                                                .description("API Gateway - Local")))
+                                                                .url("http://localhost:8081")
+                                                                .description("Identity Service - Direct")))
+
                                 .info(
                                                 new Info()
                                                                 .title("HelpHub - IdentityService API")
