@@ -21,40 +21,68 @@ public class GatewaySecurityConfig {
 
         @Bean
         public SecurityWebFilterChain securityWebFilterChain(
-                        ServerHttpSecurity http) {
+                        ServerHttpSecurity http,
+                        @Value("${app.swagger.enabled:false}") boolean swaggerEnabled) {
 
                 return http
                                 .csrf(ServerHttpSecurity.CsrfSpec::disable)
                                 .httpBasic(ServerHttpSecurity.HttpBasicSpec::disable)
                                 .formLogin(ServerHttpSecurity.FormLoginSpec::disable)
 
-                                .authorizeExchange(auth -> auth
-                                                .pathMatchers(HttpMethod.OPTIONS, "/**")
-                                                .permitAll()
+                                .authorizeExchange(auth -> {
 
-                                                .pathMatchers(HttpMethod.GET,
-                                                                "/actuator/health",
-                                                                "/actuator/health/**",
-                                                                "/api/v1/auth/csrf")
-                                                .permitAll()
+                                        // Preflight
+                                        auth.pathMatchers(HttpMethod.OPTIONS, "/**")
+                                                        .permitAll();
 
-                                                .pathMatchers(HttpMethod.POST,
-                                                                "/api/v1/auth/register",
-                                                                "/api/v1/auth/email/resend",
-                                                                "/api/v1/auth/email/verify",
-                                                                "/api/v1/auth/login",
-                                                                "/api/v1/auth/refresh",
-                                                                "/api/v1/auth/mfa/login/verify",
-                                                                "/api/v1/auth/password/forgot",
-                                                                "/api/v1/auth/password/reset")
-                                                .permitAll()
+                                        // ==========================================
+                                        // Swagger DEV only
+                                        // ==========================================
+                                        if (swaggerEnabled) {
 
-                                                .pathMatchers(
-                                                                "/api/v1/notifications",
-                                                                "/api/v1/notifications/**")
-                                                .authenticated()
+                                                auth.pathMatchers(
+                                                                HttpMethod.GET,
 
-                                                .anyExchange().authenticated())
+                                                                "/swagger-ui.html",
+                                                                "/swagger-ui/**",
+                                                                "/webjars/**",
+                                                                "/v3/api-docs",
+                                                                "/v3/api-docs/**",
+
+                                                                "/_docs/identity",
+                                                                "/_docs/media",
+                                                                "/_docs/notification").permitAll();
+                                        }
+
+                                        // ==========================================
+                                        // Existing public endpoints
+                                        // ==========================================
+                                        auth.pathMatchers(
+                                                        HttpMethod.GET,
+                                                        "/actuator/health",
+                                                        "/actuator/health/**",
+                                                        "/api/v1/auth/csrf").permitAll();
+
+                                        auth.pathMatchers(
+                                                        HttpMethod.POST,
+                                                        "/api/v1/auth/register",
+                                                        "/api/v1/auth/email/resend",
+                                                        "/api/v1/auth/email/verify",
+                                                        "/api/v1/auth/login",
+                                                        "/api/v1/auth/refresh",
+                                                        "/api/v1/auth/mfa/login/verify",
+                                                        "/api/v1/auth/password/forgot",
+                                                        "/api/v1/auth/password/reset").permitAll();
+
+                                        // Protected Notification APIs
+                                        auth.pathMatchers(
+                                                        "/api/v1/notifications",
+                                                        "/api/v1/notifications/**").authenticated();
+
+                                        // Preserve the existing JWT requirement
+                                        // for all remaining endpoints.
+                                        auth.anyExchange().authenticated();
+                                })
 
                                 .oauth2ResourceServer(oauth -> oauth.jwt(Customizer.withDefaults()))
 

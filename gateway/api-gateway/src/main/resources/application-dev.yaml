@@ -1,0 +1,41 @@
+# ==========================================
+# DEV - Centralized Swagger
+# ==========================================
+app:
+  swagger:
+    enabled: true
+
+springdoc:
+  api-docs:
+    enabled: true
+    path: /v3/api-docs
+
+  swagger-ui:
+    enabled: true
+    path: /swagger-ui.html
+    
+    with-credentials: true
+
+    # Disable default Petstore specification
+    disable-swagger-default-url: true
+
+    # Service selector
+    urls:
+      - name: 01 - Identity Service
+        url: /_docs/identity
+
+      - name: 02 - Media Service
+        url: /_docs/media
+
+      - name: 03 - Notification Service
+        url: /_docs/notification
+
+    urls-primary-name: 01 - Identity Service
+
+    # UI configuration
+    operations-sorter: method
+    tags-sorter: alpha
+    doc-expansion: none
+    display-request-duration: true
+    persist-authorization: false
+    try-it-out-enabled: true
