@@ -42,7 +42,8 @@ public class SecurityConfig {
         // ==========================================
         @Bean
         public SecurityFilterChain securityFilterChain(
-                        HttpSecurity http) throws Exception {
+                        HttpSecurity http,
+                        @Value("${app.swagger.enabled:false}") boolean swaggerEnabled) throws Exception {
 
                 http
                                 // Stateless REST API using Bearer tokens.
@@ -54,27 +55,29 @@ public class SecurityConfig {
                                 .sessionManagement(session -> session.sessionCreationPolicy(
                                                 SessionCreationPolicy.STATELESS))
 
-                                .authorizeHttpRequests(auth -> auth
+                                .authorizeHttpRequests(auth -> {
 
-                                                // Allow Spring Boot to render error responses.
-                                                .dispatcherTypeMatchers(
-                                                                DispatcherType.ERROR)
-                                                .permitAll()
+                                        auth.dispatcherTypeMatchers(
+                                                        DispatcherType.ERROR).permitAll();
 
-                                                // Public health endpoints.
-                                                .requestMatchers(
-                                                                "/actuator/health",
-                                                                "/actuator/info")
-                                                .permitAll()
+                                        auth.requestMatchers(
+                                                        "/actuator/health",
+                                                        "/actuator/info").permitAll();
 
-                                                // Protected Notification API.
-                                                .requestMatchers(
-                                                                "/api/v1/notifications",
-                                                                "/api/v1/notifications/**")
-                                                .authenticated()
+                                        // OpenAPI available only in dev
+                                        if (swaggerEnabled) {
+                                                auth.requestMatchers(
+                                                                org.springframework.http.HttpMethod.GET,
+                                                                "/v3/api-docs",
+                                                                "/v3/api-docs/**").permitAll();
+                                        }
 
-                                                // Deny other HTTP endpoints.
-                                                .anyRequest().denyAll())
+                                        auth.requestMatchers(
+                                                        "/api/v1/notifications",
+                                                        "/api/v1/notifications/**").authenticated();
+
+                                        auth.anyRequest().denyAll();
+                                })
 
                                 // Verify JWT Bearer token.
                                 .oauth2ResourceServer(oauth -> oauth.jwt(Customizer.withDefaults()));

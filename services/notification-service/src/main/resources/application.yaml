@@ -51,7 +51,15 @@ app:
       issuer: ${JWT_ISSUER:helphub-identity}
       audience: ${JWT_AUDIENCE:helphub-services}
       jwk-set-uri: ${IDENTITY_JWKS_URI:http://localhost:8081/internal/jwks}
+  swagger:
+      enabled: false
 
 logging:
   pattern:
     level: "%5p [requestId=%X{requestId:-none}]"
+
+springdoc:
+  api-docs:
+    enabled: false
+  swagger-ui:
+    enabled: false

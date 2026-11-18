@@ -45,3 +45,17 @@ logging:
     org.springframework.amqp: INFO
     org.hibernate.SQL: DEBUG
     com.helphub.notification: DEBUG
+
+
+app:
+  swagger:
+    enabled: true
+
+springdoc:
+  api-docs:
+    enabled: true
+    path: /v3/api-docs
+
+  paths-to-match:
+    - /api/v1/notifications
+    - /api/v1/notifications/**
