@@ -3,6 +3,7 @@ param(
     [ValidateSet(
         "api-gateway",
         "identity-service",
+        "media-service",
         "notification-service"
     )]
     [string]$Service

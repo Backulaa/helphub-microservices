@@ -1,0 +1,15 @@
+# Maven Wrapper
+/mvnw text eol=lf
+/mvnw.cmd text eol=crlf
+
+# Java / Maven
+*.java text eol=lf
+*.xml text eol=lf
+*.properties text eol=lf
+
+# Configuration
+*.yaml text eol=lf
+*.yml text eol=lf
+
+# Docker
+Dockerfile text eol=lf

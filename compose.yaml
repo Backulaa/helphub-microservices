@@ -136,6 +136,55 @@ services:
       - backend
 
     restart: unless-stopped
+  
+  # ==========================================
+  # MEDIA SERVICE
+  # ==========================================
+  media-service:
+    build:
+      context: .
+      dockerfile: services/media-service/Dockerfile
+
+    environment:
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILE:-dev}
+      SERVER_PORT: "8082"
+
+      # PostgreSQL
+      DB_URL: jdbc:postgresql://postgres:5432/${MEDIA_DB_NAME}
+      DB_USER: ${MEDIA_DB_USER}
+      DB_PASSWORD: ${MEDIA_DB_PASSWORD}
+
+      # RabbitMQ
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_PORT: "5672"
+      RABBITMQ_USER: ${RABBITMQ_USER:?required}
+      RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:?required}
+      RABBITMQ_VHOST: ${RABBITMQ_VHOST:-helphub}
+
+      # JWT Resource Server
+      IDENTITY_JWKS_URI: http://identity-service:8081/internal/jwks
+      JWT_ISSUER: ${JWT_ISSUER:-helphub-identity}
+      JWT_AUDIENCE: ${JWT_AUDIENCE:-helphub-services}
+
+      # Cloudinary
+      CLOUDINARY_CLOUD_NAME: ${CLOUDINARY_CLOUD_NAME:?required}
+      CLOUDINARY_API_KEY: ${CLOUDINARY_API_KEY:?required}
+      CLOUDINARY_API_SECRET: ${CLOUDINARY_API_SECRET:?required}
+
+    depends_on:
+      db-init:
+        condition: service_completed_successfully
+
+      rabbitmq:
+        condition: service_healthy
+
+      identity-service:
+        condition: service_started
+
+    networks:
+      - backend
+
+    restart: unless-stopped
 
   # ==========================================
   # NOTIFICATION SERVICE
@@ -191,6 +240,7 @@ services:
 
       # Downstream services
       IDENTITY_SERVICE_URL: http://identity-service:8081
+      MEDIA_SERVICE_URL: http://media-service:8082
       NOTIFICATION_SERVICE_URL: http://notification-service:8083
 
       # JWT Authentication
@@ -206,6 +256,9 @@ services:
 
     depends_on:
       identity-service:
+        condition: service_started
+
+      media-service:
         condition: service_started
 
       notification-service:

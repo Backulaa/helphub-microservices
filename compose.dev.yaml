@@ -7,6 +7,22 @@ services:
     ports:
       - "127.0.0.1:8081:8081"
 
+  media-service:
+    ports:
+      - "127.0.0.1:8082:8082"
+    environment:
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILE:-dev}
+      APP_MEDIA_RECOVERY_SIMULATE_CRASH_AFTER_UPLOAD: ${SIMULATE_PRIVATE_CRASH:-false}
+      MEDIA_INTERNAL_COMMUNITY_KEY: ${MEDIA_INTERNAL_COMMUNITY_KEY:-}
+      MEDIA_INTERNAL_SUPPORT_KEY: ${MEDIA_INTERNAL_SUPPORT_KEY:-}
+      MEDIA_ACCESS_GRANT_TTL_SECONDS: ${MEDIA_ACCESS_GRANT_TTL_SECONDS:-120}
+      
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_PORT: "5672"
+      RABBITMQ_USER: ${RABBITMQ_USER}
+      RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD}
+      RABBITMQ_VHOST: ${RABBITMQ_VHOST:-helphub}
+      
   notification-service:
     ports:
       - "127.0.0.1:8083:8083"
@@ -20,3 +36,7 @@ services:
     ports:
       - "127.0.0.1:5672:5672"
       - "127.0.0.1:15672:15672"
+
+  api-gateway:
+    environment:
+      SPRING_PROFILES_ACTIVE: dev

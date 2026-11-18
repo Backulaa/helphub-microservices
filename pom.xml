@@ -16,6 +16,7 @@
         <module>gateway/api-gateway</module>
         <module>services/identity-service</module>
         <module>services/notification-service</module>
+        <module>services/media-service</module>
     </modules>
 
 </project>
