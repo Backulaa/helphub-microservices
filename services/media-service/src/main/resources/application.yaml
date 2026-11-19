@@ -77,7 +77,16 @@ app:
         - application/pdf
 
     cleanup:
+      enabled: false
+
       grace-period: PT24H
+
+      batch-size: 10
+      lease-seconds: 180
+      max-attempts: 8
+
+      initial-delay-ms: 30000
+      fixed-delay-ms: 60000
 
     recovery:
       enabled: false

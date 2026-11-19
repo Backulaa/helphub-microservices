@@ -83,7 +83,8 @@ public class MediaMetadataService {
             UUID requesterId) {
 
         // Only completed media can be retrieved.
-        if (media.getStatus() != MediaStatus.READY) {
+        if (media.getStatus() != MediaStatus.READY
+                || media.getDeletedAt() != null) {
             return false;
         }
 

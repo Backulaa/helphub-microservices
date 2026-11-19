@@ -22,6 +22,7 @@ public class MediaOutboxPublisherJob {
 
     private final int batchSize;
     private final int leaseSeconds;
+    @SuppressWarnings("unused")
     private final int confirmTimeoutSeconds;
     private final int maxRetries;
     private final int retryBaseSeconds;

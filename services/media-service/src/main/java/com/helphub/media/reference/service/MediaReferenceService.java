@@ -18,134 +18,136 @@ import java.util.UUID;
 @Service
 public class MediaReferenceService {
 
-    private final MediaRepository mediaRepository;
-    private final MediaReferenceRepository referenceRepository;
+        private final MediaRepository mediaRepository;
+        private final MediaReferenceRepository referenceRepository;
 
-    public MediaReferenceService(
-            MediaRepository mediaRepository,
-            MediaReferenceRepository referenceRepository) {
+        public MediaReferenceService(
+                        MediaRepository mediaRepository,
+                        MediaReferenceRepository referenceRepository) {
 
-        this.mediaRepository = mediaRepository;
-        this.referenceRepository = referenceRepository;
-    }
-
-    @Transactional
-    public MediaReferenceResponse attach(
-            String serviceName,
-            MediaReferenceRequest request) {
-
-        validateScope(serviceName, request.resourceType());
-
-        // Pessimistic lock protects READY check
-        // from concurrent state transitions.
-        Media media = mediaRepository
-                .findByIdForUpdate(request.mediaId())
-                .orElseThrow(this::notFound);
-
-        if (media.getStatus() != MediaStatus.READY) {
-            throw conflict(
-                    "MEDIA_NOT_READY",
-                    "Only READY media may be referenced");
+                this.mediaRepository = mediaRepository;
+                this.referenceRepository = referenceRepository;
         }
 
-        if (!media.getOwnerId().equals(request.ownerId())) {
-            throw conflict(
-                    "MEDIA_OWNER_MISMATCH",
-                    "Media owner does not match resource owner");
+        @Transactional
+        public MediaReferenceResponse attach(
+                        String serviceName,
+                        MediaReferenceRequest request) {
+
+                validateScope(serviceName, request.resourceType());
+
+                // Pessimistic lock protects READY check
+                // from concurrent state transitions.
+                Media media = mediaRepository
+                                .findByIdForUpdate(request.mediaId())
+                                .orElseThrow(this::notFound);
+
+                if (media.getStatus() != MediaStatus.READY
+                                || media.getDeletedAt() != null) {
+
+                        throw conflict(
+                                        "MEDIA_NOT_READY",
+                                        "Only active READY media may be referenced");
+                }
+
+                if (!media.getOwnerId().equals(request.ownerId())) {
+                        throw conflict(
+                                        "MEDIA_OWNER_MISMATCH",
+                                        "Media owner does not match resource owner");
+                }
+
+                int inserted = referenceRepository.insertIfAbsent(
+                                UUID.randomUUID(),
+                                media.getId(),
+                                serviceName,
+                                request.resourceType(),
+                                request.resourceId());
+
+                return new MediaReferenceResponse(
+                                media.getId(),
+                                serviceName,
+                                request.resourceType(),
+                                request.resourceId(),
+                                inserted == 1);
         }
 
-        int inserted = referenceRepository.insertIfAbsent(
-                UUID.randomUUID(),
-                media.getId(),
-                serviceName,
-                request.resourceType(),
-                request.resourceId());
+        @Transactional
+        public boolean detach(
+                        String serviceName,
+                        MediaReferenceDeleteRequest request) {
 
-        return new MediaReferenceResponse(
-                media.getId(),
-                serviceName,
-                request.resourceType(),
-                request.resourceId(),
-                inserted == 1);
-    }
+                validateScope(serviceName, request.resourceType());
 
-    @Transactional
-    public boolean detach(
-            String serviceName,
-            MediaReferenceDeleteRequest request) {
+                // Lock media to coordinate with future
+                // cleanup and reference-attachment operations.
+                if (mediaRepository
+                                .findByIdForUpdate(request.mediaId())
+                                .isEmpty()) {
+                        return false;
+                }
 
-        validateScope(serviceName, request.resourceType());
+                int deleted = referenceRepository.deleteReference(
+                                request.mediaId(),
+                                serviceName,
+                                request.resourceType(),
+                                request.resourceId());
 
-        // Lock media to coordinate with future
-        // cleanup and reference-attachment operations.
-        if (mediaRepository
-                .findByIdForUpdate(request.mediaId())
-                .isEmpty()) {
-            return false;
+                return deleted > 0;
         }
 
-        int deleted = referenceRepository.deleteReference(
-                request.mediaId(),
-                serviceName,
-                request.resourceType(),
-                request.resourceId());
+        @Transactional(readOnly = true)
+        public List<UUID> getByResource(
+                        String serviceName,
+                        String resourceType,
+                        UUID resourceId) {
 
-        return deleted > 0;
-    }
+                validateScope(serviceName, resourceType);
 
-    @Transactional(readOnly = true)
-    public List<UUID> getByResource(
-            String serviceName,
-            String resourceType,
-            UUID resourceId) {
-
-        validateScope(serviceName, resourceType);
-
-        return referenceRepository.findMediaIdsForResource(
-                serviceName,
-                resourceType,
-                resourceId);
-    }
-
-    private void validateScope(
-            String serviceName,
-            String resourceType) {
-
-        boolean allowed = switch (serviceName) {
-            case "community" ->
-                Set.of("POST", "COMMENT")
-                        .contains(resourceType);
-
-            case "support" ->
-                Set.of(
-                        "SUPPORT_REQUEST",
-                        "SUPPORT_MESSAGE").contains(resourceType);
-
-            default -> false;
-        };
-
-        if (!allowed) {
-            throw new MediaApiException(
-                    HttpStatus.FORBIDDEN,
-                    "INVALID_SERVICE_RESOURCE_SCOPE",
-                    "Service cannot manage this resource type");
+                return referenceRepository.findMediaIdsForResource(
+                                serviceName,
+                                resourceType,
+                                resourceId);
         }
-    }
 
-    private MediaApiException notFound() {
-        return new MediaApiException(
-                HttpStatus.NOT_FOUND,
-                "MEDIA_NOT_FOUND",
-                "Media not found");
-    }
+        private void validateScope(
+                        String serviceName,
+                        String resourceType) {
 
-    private MediaApiException conflict(
-            String code,
-            String message) {
+                boolean allowed = switch (serviceName) {
+                        case "community" ->
+                                Set.of("POST", "COMMENT")
+                                                .contains(resourceType);
 
-        return new MediaApiException(
-                HttpStatus.CONFLICT,
-                code,
-                message);
-    }
+                        case "support" ->
+                                Set.of(
+                                                "SUPPORT_REQUEST",
+                                                "SUPPORT_MESSAGE").contains(resourceType);
+
+                        default -> false;
+                };
+
+                if (!allowed) {
+                        throw new MediaApiException(
+                                        HttpStatus.FORBIDDEN,
+                                        "INVALID_SERVICE_RESOURCE_SCOPE",
+                                        "Service cannot manage this resource type");
+                }
+        }
+
+        private MediaApiException notFound() {
+                return new MediaApiException(
+                                HttpStatus.NOT_FOUND,
+                                "MEDIA_NOT_FOUND",
+                                "Media not found");
+        }
+
+        private MediaApiException conflict(
+                        String code,
+                        String message) {
+
+                return new MediaApiException(
+                                HttpStatus.CONFLICT,
+                                code,
+                                message);
+        }
 }

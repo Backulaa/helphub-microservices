@@ -78,6 +78,11 @@ public class SecurityConfig {
                                                         org.springframework.http.HttpMethod.GET,
                                                         "/api/v1/media/*").authenticated();
 
+                                        // Soft delete owned media
+                                        auth.requestMatchers(
+                                                        org.springframework.http.HttpMethod.DELETE,
+                                                        "/api/v1/media/*").authenticated();
+
                                         // Retrieve multiple metadata records.
                                         auth.requestMatchers(
                                                         org.springframework.http.HttpMethod.POST,
